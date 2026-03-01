@@ -1,0 +1,309 @@
+@pageWidth: 660px;
+@pageHeight: 880px;
+@contentsWidth: 500px;
+
+.page_view {
+  width: 100%;
+  height: 100%;
+
+  background-color: var(--background);
+  backface-visibility: hidden;
+  font-size: 18px;
+
+  .raw_page * {
+    font-family: inherit !important;
+    color: var(--foreground) !important;
+  }
+
+}
+
+.page_container {
+  height: 100%;
+  width: 100%;
+  flex-shrink: 1;
+
+  ::selection {
+    color: var(--selectFg);
+    background-color: var(--selectBg);
+  }
+
+  display: flex;
+  justify-content: center;
+
+  overflow: hidden;
+  transition: 500ms;
+
+  .book_cover {
+    flex-shrink: 0;
+    flex-grow: 0;
+    height: @pageHeight * 0.9;
+    width: @pageWidth * 0.9;
+    margin: auto;
+    overflow: hidden;
+    border-radius: 20px;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+
+    img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+.page_container {
+
+  transition: 500ms;
+
+  &.show_contents {
+    transform: translateX(calc(@contentsWidth / 2));
+  }
+}
+
+.page_content {
+  height: 100%;
+  width: @pageWidth;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+
+  //background-color: #7c4dff;
+
+}
+
+.raw_page {
+  //background-color: #0b253a;
+
+  width: 600px;
+  height: 830px;
+
+  margin-left: -18px;
+
+  position: relative;
+  backface-visibility: hidden;
+
+  display: flex;
+  justify-content: center;
+  align-items: start;
+
+  .wraper {
+    //background-color: #00BCD4;
+    flex-shrink: 0;
+    overflow: visible !important;
+    position: relative !important;
+
+    .text {
+      width: 100% !important;
+      overflow: visible !important;
+
+      span {
+        z-index: 2;
+      }
+    }
+  }
+
+  // 处理封面可以上下滚动的问题
+  .image {
+    overflow: hidden;
+  }
+
+  .note {
+    height: auto !important;
+    width: auto !important;
+  }
+
+  img {
+    background-color: var(--second);
+    cursor: pointer;
+  }
+
+}
+
+.page_indicator {
+  //background-color: #1E611E;
+
+  background-color: inherit;
+  width: @pageWidth;
+  height: 50px;
+  padding-top: 10px;
+  box-sizing: border-box;
+
+  color: var(--text);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  user-select: none;
+
+  .page_title {
+    width: 450px;
+    height: 100%;
+
+    text-align: left;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    margin-top: 0;
+    box-sizing: border-box;
+    padding: 5px 20px;
+  }
+
+  .page_number {
+    display: flex;
+    align-items: center;
+    min-width: 150px;
+    text-align: right;
+    line-height: 30px;
+
+    input {
+      width: 50px;
+      text-align: right;
+      background-color: inherit;
+      font-size: inherit;
+      font-family: var(--font-family);
+      outline: none;
+      box-shadow: none;
+      border: none;
+      color: var(--text);
+      border-bottom: 2px solid transparent;
+      caret-color: var(--foreground);
+
+      &::placeholder {
+        color: var(--text);
+      }
+
+      &:focus {
+        box-shadow: none;
+        border-bottom: 2px solid var(--accent);
+      }
+    }
+
+    p {
+      margin-left: -1px;
+      padding: 0;
+    }
+  }
+
+}
+
+.page_container::-webkit-scrollbar {
+  width: 10px;
+  border-radius: 10px;
+}
+
+.page_container::-webkit-scrollbar-thumb {
+  width: 100%;
+  border-radius: 5px;
+
+  background-color: var(--background);
+  background-clip: padding-box;
+}
+
+.page_bottom {
+  width: 100%;
+  height: 40px;
+  padding-left: 25px;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: end;
+  margin-bottom: 5px;
+}
+
+
+// 书页中的注解弹出框
+.notePopover {
+  font-size: 120% !important;
+  --el-popover-bg-color: var(--selectBg);
+  color: var(--selectFg) !important;
+  padding: 15px;
+  box-sizing: content-box;
+}
+
+@media screen and (max-width: 800px) {
+  .page_view {
+    user-select: none;
+  }
+
+  .page_container {
+
+    .book_cover {
+      width: @pageWidth * 0.7;
+      height: @pageHeight * 0.7;
+    }
+
+  }
+
+}
+
+
+.page_confirm {
+  background-color: var(--background);
+  border-radius: 10px;
+  padding: 10px;
+  user-select: none;
+
+  .el-dialog__body {
+    span {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+  }
+
+  * {
+    color: var(--selectFg);
+  }
+
+  .page_confirm_footer {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-around;
+    padding: 0 50px;
+  }
+
+  button {
+    background-color: var(--selectBg);
+    border: none;
+
+    &:hover {
+      background-color: var(--background);
+    }
+  }
+
+
+}
+
+
+/* ------- 当当 -------------- */
+
+.border {
+  display: none !important;
+}
+
+.raw_page {
+
+  .image {
+    z-index: unset;
+    -webkit-user-drag: none;
+  }
+
+  div[to_url] {
+    z-index: -1 !important;
+  }
+
+}
+
+img {
+  z-index: 1;
+}
+

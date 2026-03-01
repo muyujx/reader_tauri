@@ -1,0 +1,253 @@
+.reading_history {
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  :deep(.el-calendar) {
+    background-color: var(--background);
+    user-select: none;
+    height: 100%;
+
+    .el-calendar__header {
+      background-color: var(--background);
+      height: 50px;
+      box-sizing: border-box;
+      border: none;
+    }
+
+    .el-calendar__body {
+      padding: 0;
+      height: calc(100% - 80px);
+      background-color: #CDCDCD;
+    }
+
+    .el-calendar-table {
+      box-sizing: border-box;
+      height: 100%;
+      border: none;
+      --el-calendar-selected-bg-color: var(--selectBg);
+
+      .el-calendar-day {
+        width: 100%;
+        height: 120px;
+        //overflow: hidden;
+        padding: 5px 0 0 0;
+        margin: 0;
+        //background-color: #0b253a;
+        box-sizing: border-box;
+        border-radius: 10px;
+
+        &:hover {
+          color: var(--primary);
+        }
+
+        p {
+          margin: 0;
+          text-align: center;
+        }
+      }
+
+      thead {
+        --el-text-color-regular: var(--foreground);
+        background-color: var(--background);
+        height: 45px;
+        box-sizing: border-box;
+      }
+
+      tbody {
+        td {
+          padding: 5px;
+          border: none;
+          height: 100px;
+
+        }
+      }
+
+      .prev, .next {
+        color: var(--text);
+      }
+
+      .current {
+        color: var(--foreground);
+      }
+
+
+      .current, .prev, .next {
+        background-color: var(--background);
+      }
+
+      .current.is-today {
+        color: var(--primary);
+      }
+
+    }
+  }
+}
+
+.header_content {
+  width: 400px;
+  display: flex;
+  font-size: 15px;
+  justify-content: space-around;
+}
+
+.day_content {
+  display: flex;
+  height: 70px;
+  margin: 0;
+  font-size: 13px;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 5px;
+  //background-color: #0c969b;
+
+
+  div {
+    margin-top: 5px;
+    //background-color: #0b253a;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    p {
+      margin: 0;
+    }
+  }
+}
+
+.day_book_list {
+  position: absolute;
+  width: 50%;
+  min-width: 700px;
+  height: 50%;
+  min-height: 600px;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(0, 300px));
+  grid-template-rows: repeat(auto-fill, 200px);
+  place-items: center;
+  justify-content: center;
+
+  //align-items: start;
+  //justify-content: start;
+
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-left: auto;
+  z-index: 101;
+  background-color: var(--selectBg);
+  border-radius: 10px;
+  box-sizing: border-box;
+  overflow: auto;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    width: 100%;
+    border-radius: 10px;
+    background-color: var(--active);
+    border: 1px solid var(--active);
+    background-clip: padding-box;
+  }
+
+}
+
+
+.book {
+  display: flex;
+  user-select: none;
+  width: 300px;
+  height: 190px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  background-color: var(--selectBg);
+  color: var(--foreground);
+
+  justify-content: space-between;
+  align-items: center;
+
+  border: 3px solid transparent;
+  transition: all ease 300ms;
+  position: relative;
+
+  .cover {
+    width: 110px;
+    height: 160px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 3px solid transparent;
+    transition: all ease 0.5s;
+
+    img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+.mask {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.detail {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: start;
+  //background-color: #3A66D1;
+  width: 170px;
+  height: 100%;
+  position: relative;
+
+  .item + .item {
+    margin-top: 3px;
+  }
+
+  .item {
+    display: flex;
+    font-size: 13px;
+    margin-top: 1px;
+
+
+    p:first-child {
+      //background-color: #1E611E;
+      width: 60px;
+    }
+
+    p {
+      margin: 0;
+    }
+  }
+
+
+  .name {
+    width: 150px;
+    min-height: 70px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 15px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-wrap: wrap;
+
+    //background-color: #1E611E;
+  }
+
+
+}

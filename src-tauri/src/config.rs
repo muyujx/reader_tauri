@@ -1,0 +1,102 @@
+use log::info;
+use std::path::PathBuf;
+use tauri::AppHandle;
+use tauri::Manager;
+
+// 默认窗口大小
+const DEFAULT_WIN_WIDTH: i32 = 1500;
+const DEFAULT_WIN_HEIGHT: i32 = 1000;
+
+/// 获取配置文件路径
+fn get_config_path() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let parent = exe.parent()?;
+    Some(parent.join("config.json"))
+}
+
+/// 从文件读取配置
+fn load_config_value(key: &str) -> Option<String> {
+    let config_path = get_config_path()?;
+
+    if config_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                return json
+                    .get(key)
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// 保存配置到文件
+fn save_config_value(key: &str, value: &str) -> Result<(), String> {
+    let config_path = get_config_path().ok_or("Failed to get config path")?;
+
+    let mut json = if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).unwrap_or_else(|_| "{}".to_string());
+        serde_json::from_str::<serde_json::Value>(&content).unwrap_or(serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+
+    json[key] = serde_json::json!(value);
+
+    let content = serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?;
+    std::fs::write(&config_path, content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// 获取窗口大小
+#[tauri::command]
+pub fn get_win_size() -> Vec<i32> {
+    let width = load_config_value("winWidth")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_WIN_WIDTH);
+    let height = load_config_value("winHeight")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_WIN_HEIGHT);
+    vec![width, height]
+}
+
+/// 设置窗口大小
+#[tauri::command]
+pub fn set_win_size(width: i32, height: i32) {
+    let _ = save_config_value("winWidth", &width.to_string());
+    let _ = save_config_value("winHeight", &height.to_string());
+    info!("[Config] Window size set to: {}x{}", width, height);
+}
+
+/// 获取默认缓存目录
+fn get_default_cache_dir(app: &AppHandle) -> String {
+    app.path()
+        .app_data_dir()
+        .map(|p| p.join("reader").join("cache").to_string_lossy().to_string())
+        .unwrap_or_else(|_| {
+            dirs::data_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("reader")
+                .join("cache")
+                .to_string_lossy()
+                .to_string()
+        })
+}
+
+/// 获取缓存目录
+#[tauri::command]
+pub fn get_cache_dir(app: AppHandle) -> String {
+    // 优先从配置文件读取
+    if let Some(dir) = load_config_value("cacheDir") {
+        return dir;
+    }
+    // 返回默认目录
+    get_default_cache_dir(&app)
+}
+
+/// 保存缓存目录到配置文件（公开给 lib.rs 使用）
+pub fn save_cache_dir(dir: &str) -> Result<(), String> {
+    save_config_value("cacheDir", dir)
+}

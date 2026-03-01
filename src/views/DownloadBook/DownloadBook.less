@@ -1,0 +1,198 @@
+.download {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  padding-top: 50px;
+  padding-bottom: 30px;
+  box-sizing: border-box;
+}
+
+.books {
+  max-width: 1300px;
+  height: 900px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(0, 400px));
+  grid-template-rows: repeat(auto-fill, 200px);
+  grid-row-gap: 20px;
+  place-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  user-select: none;
+  overflow: auto;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    width: 100%;
+    border-radius: 10px;
+    background-color: var(--active);
+    border: 1px solid var(--active);
+    background-clip: padding-box;
+  }
+}
+
+.detail {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: start;
+  width: 170px;
+  height: 100%;
+  position: relative;
+
+  .delete-download {
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 30px;
+
+    border-radius: 10px 0 0 0;
+
+    &:hover {
+      color: var(--danger);
+    }
+
+    .el-icon {
+      color: var(--danger);
+      font-size: 25px;
+    }
+  }
+
+  .item + .item {
+    margin-top: 3px;
+  }
+
+  .item {
+    display: flex;
+    font-size: 12px;
+    margin-top: 1px;
+
+    p:first-child {
+      width: 60px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .detail_item_content {
+      display: flex;
+      flex-direction: column;
+
+      p {
+        width: 100px;
+      }
+
+      .el-progress {
+        margin-top: 5px;
+        margin-bottom: 5px;
+
+        :deep(.el-progress-bar__innerText) {
+          color: var(--foreground);
+        }
+      }
+    }
+  }
+
+  .name {
+    width: 150px;
+    min-height: 70px;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 15px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-wrap: wrap;
+  }
+}
+
+.book {
+  width: 300px;
+  height: 190px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  background-color: var(--selectBg);
+  color: var(--foreground);
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  border: 3px solid transparent;
+  transition: all ease 300ms;
+  position: relative;
+
+  .cover {
+    width: 110px;
+    height: 160px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 3px solid transparent;
+    transition: all ease 0.5s;
+
+    img {
+      width: 100%;
+      height: 100%;
+    }
+
+    &:hover {
+      border: 3px solid var(--primary);
+    }
+
+    &:active {
+      transform: scale(0.5);
+    }
+  }
+}
+
+.empty-notify {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  color: var(--primary);
+  flex-direction: column;
+  margin-top: -50px;
+
+  .el-icon {
+    font-size: 100px;
+  }
+
+  p {
+    margin-top: 0;
+  }
+
+  &.active {
+    display: flex;
+  }
+}
+
+@media screen and (max-width: 800px) {
+  .books {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(0, 320px));
+    grid-template-rows: repeat(auto-fill, 200px);
+    grid-row-gap: 20px;
+  }
+}

@@ -1,0 +1,170 @@
+
+.el-input {
+
+  * {
+    --el-input-focus-border-color: none;
+    --el-input-text-color: var(--accent);
+  }
+
+  height: 45px;
+  border: none;
+
+  * {
+    background-color: var(--background);
+    box-shadow: none;
+    border: none;
+
+    &::selection {
+      background-color: var(--selectBg);
+    }
+  }
+
+  .el-input__wrapper {
+    border-radius: 0;
+    padding: 0;
+
+    &, &.is-focus, &:hover, &:active {
+      background-color: var(--background);
+      border: none;
+      box-shadow: none;
+    }
+  }
+
+  .el-input__inner {
+    font-family: var(--font-family);
+    border-bottom: 2px solid var(--accent);
+  }
+
+  &:hover, &:active {
+    * {
+      box-shadow: none;
+      background-color: inherit;
+    }
+  }
+
+}
+
+
+button.el-button {
+  background-color: var(--selectBg);
+  border: none;
+  color: var(--selectFg);
+
+  &:hover {
+    background-color: var(--background);
+  }
+}
+
+body .el-message {
+  background-color: var(--second);
+  border: none;
+  height: 40px;
+
+  &.el-message--info {
+    --el-message-text-color: var(--selectFg);
+  }
+
+  &.el-message--error {
+    --el-message-text-color: var(--orange);
+  }
+
+  &.el-message--warning {
+    --el-message-text-color: var(--yellow);
+  }
+}
+
+
+body .el-pagination {
+
+  margin-bottom: 10px;
+  margin-top: 10px;
+  color: var(--foreground);
+
+  .el-pagination__goto {
+    display: none;
+  }
+
+  button:hover, .el-pager > li:hover {
+    color: var(--selectFg2);
+  }
+
+  button, li {
+    background-color: var(--accent);
+    width: 40px;
+    height: 40px;
+    margin: 0 7px;
+    border-radius: 8px;
+  }
+
+  button[disabled] {
+    color: var(--foreground);
+    background-color: var(--disabled);
+  }
+
+  li.is-active {
+    color: var(--selectFg);
+  }
+
+  .el-pagination__jump {
+
+    .el-input__wrapper {
+      *:hover {
+        color: var(--primary);
+      }
+
+      box-shadow: none;
+      background-color: var(--background);
+    }
+
+    .el-input__wrapper.is-focus {
+      * {
+        color: var(--primary);
+      }
+    }
+
+
+  }
+}
+
+
+.button {
+  cursor: pointer;
+  margin-left: 10px;
+  border-radius: 5px;
+  padding: 5px;
+  background-color: var(--button);
+
+  &:hover {
+    background-color: var(--selectBg)
+  }
+
+  &:active {
+    background-color: var(--accent);
+  }
+}
+
+.el-popper {
+  color: var(--foreground) !important;
+  background-color: var(--second) !important;
+  border: none !important;
+}
+
+.el-popper__arrow::before {
+  background-color: var(--second) !important;
+  border: none !important;
+}
+
+
+.el-progress-bar {
+  .el-progress-bar__outer {
+    background-color: var(--text);
+  }
+
+  .el-progress-bar__inner {
+    background-color: var(--background);
+  }
+}
+
+
+
+
