@@ -1,12 +1,12 @@
 export default {
     // 设置
     folderChoose: 'folderChoose',
-    changeRootCacheDir: 'changeRootCacheDir',
-    getRootCacheDir: 'getRootCacheDir',
+    change_root_cache_dir: 'change_root_cache_dir',
+    get_root_cache_dir: 'get_root_cache_dir',
 
     // 窗口
-    getStartWinSize: 'getStartWinSize',
-    setStartWinSize: 'setStartWinSize',
+    get_start_win_size: 'get_start_win_size',
+    set_start_win_size: 'set_start_win_size',
 
     // 配置
     setStore: 'setStore',

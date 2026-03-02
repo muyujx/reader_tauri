@@ -150,9 +150,9 @@ const buildTime = import.meta.env.VITE_APP_BUILD_TIME;
 
 async function init() {
     // 获取当前的缓存根目录
-    cacheDir.value = await ipcInvoke(ipcChannel.getRootCacheDir);
+    cacheDir.value = await ipcInvoke(ipcChannel.get_root_cache_dir);
 
-    winSize.value = await ipcInvoke(ipcChannel.getStartWinSize);
+    winSize.value = await ipcInvoke(ipcChannel.get_start_win_size);
 }
 
 init();
@@ -171,8 +171,8 @@ async function changeCacheDir() {
         return;
     }
 
-    await ipcInvoke(ipcChannel.changeRootCacheDir, folder);
-    cacheDir.value = await ipcInvoke(ipcChannel.getRootCacheDir);
+    await ipcInvoke(ipcChannel.change_root_cache_dir, { dir: folder });
+    cacheDir.value = await ipcInvoke(ipcChannel.get_root_cache_dir);
 }
 
 
@@ -191,7 +191,7 @@ function scaleChange(val: number) {
 async function setStartWinSize() {
     let width = window.outerWidth;
     let height = window.outerHeight;
-    winSize.value = await ipcInvoke(ipcChannel.setStartWinSize, width, height);
+    winSize.value = await ipcInvoke(ipcChannel.set_start_win_size, { width, height });
 }
 
 function logout() {

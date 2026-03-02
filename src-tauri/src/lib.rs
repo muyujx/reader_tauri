@@ -1,6 +1,6 @@
 use log::info;
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, Window};
+use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
 mod config;
 mod db;
@@ -16,14 +16,14 @@ use db::{
 };
 
 #[tauri::command]
-fn window_minimize(window: Window) {
+fn window_minimize(window: tauri::Window) {
     if let Err(e) = window.minimize() {
         eprintln!("minimize error: {}", e);
     }
 }
 
 #[tauri::command]
-fn window_maximize(window: Window) {
+fn window_maximize(window: tauri::Window) {
     match window.is_maximized() {
         Ok(true) => {
             if let Err(e) = window.unmaximize() {
@@ -40,7 +40,7 @@ fn window_maximize(window: Window) {
 }
 
 #[tauri::command]
-fn window_close(window: Window) {
+fn window_close(window: tauri::Window) {
     info!("window_close called");
     if let Err(e) = window.close() {
         eprintln!("close error: {}", e);
@@ -48,19 +48,19 @@ fn window_close(window: Window) {
 }
 
 #[tauri::command]
-fn is_maximized(window: Window) -> bool {
+fn is_maximized(window: tauri::Window) -> bool {
     window.is_maximized().unwrap_or(false)
 }
 
 // 配置相关命令
 #[tauri::command]
-fn get_start_win_size() -> Vec<i32> {
-    config_get_win_size()
+fn get_start_win_size(app: AppHandle) -> Vec<i32> {
+    config_get_win_size(app)
 }
 
 #[tauri::command]
-fn set_start_win_size(width: i32, height: i32) -> Vec<i32> {
-    config_set_win_size(width, height);
+fn set_start_win_size(app: AppHandle, width: i32, height: i32) -> Vec<i32> {
+    config_set_win_size(app, width, height);
     vec![width, height]
 }
 
@@ -70,10 +70,8 @@ fn get_root_cache_dir(app: AppHandle) -> String {
 }
 
 #[tauri::command]
-fn change_root_cache_dir(dir: String) -> Result<bool, String> {
-    // 保存到配置文件
-    save_cache_dir(&dir)?;
-    // 返回成功
+fn change_root_cache_dir(app: AppHandle, dir: String) -> Result<bool, String> {
+    save_cache_dir(&app, &dir)?;
     info!("[Config] Cache dir changed to: {}", dir);
     Ok(true)
 }
@@ -86,9 +84,28 @@ pub fn run() {
         .setup(|app| {
             info!("[App] Starting application...");
 
+            // 获取保存的窗口大小
+            let win_size = config_get_win_size(app.handle().clone());
+            info!("[App] Loaded window size: {}x{}", win_size[0], win_size[1]);
+
+            // 从配置创建窗口（可以动态修改配置）
+            let mut window_config = app.config().app.windows[0].clone();
+            window_config.width = win_size[0] as f64;
+            window_config.height = win_size[1] as f64;
+
+            info!(
+                "[App] Creating window with size: {}x{}",
+                window_config.width, window_config.height
+            );
+
+            // 使用 from_config 手动创建窗口
+            let _window =
+                WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
+
+            info!("[App] Window created successfully");
+
             // 初始化数据库
-            let app_handle = app.handle();
-            let conn = init_db(app_handle).expect("Failed to initialize database");
+            let conn = init_db(app.handle()).expect("Failed to initialize database");
             app.manage(DbState(Mutex::new(Some(conn))));
 
             info!("[App] Application started successfully");
@@ -116,7 +133,6 @@ pub fn run() {
             book_save_page,
             set_cache_dir,
             book_get_local_image,
-            // 配置相关
             get_start_win_size,
             set_start_win_size,
             get_root_cache_dir,

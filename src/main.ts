@@ -9,7 +9,6 @@ import {checkLoginApi} from "./apis/login.ts";
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import ElementPlus from 'element-plus';
 
-
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);
@@ -22,13 +21,11 @@ app.use(ElementPlus, {
  * 检查当前登录状态
  */
 function checkLogin() {
-
     checkLoginApi().then(res => {
         setUserStore(res);
     }).finally(() => {
         app.mount('#app');
     })
-
 }
 
 checkLogin();

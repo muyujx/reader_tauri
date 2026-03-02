@@ -16,8 +16,11 @@
         "title": "阅读器",
         "width": 1500,
         "height": 1000,
+        "minWidth": 400,
+        "minHeight": 300,
         "decorations": false,
-        "center": true
+        "center": true,
+        "create": false
       }
     ],
     "security": {

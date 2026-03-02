@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "call kill-port.bat && vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri dev"
+    "tauri": "call kill-port.bat && tauri dev",
+    "tauri:build": "npm run build && tauri build",
+    "tauri:build:win": "npm run build && tauri build --target x86_64-pc-windows-msvc",
+    "tauri:build:android": "npm run build && tauri build --target aarch64-linux-android"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
