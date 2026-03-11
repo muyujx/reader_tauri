@@ -88,3 +88,24 @@ body.theme-ink {
     }
   }
 }
+
+// 移动端适配 - 优化触摸体验
+@media screen and (max-width: 768px) {
+  .tabs {
+    min-height: 80px;
+  }
+
+  .tab {
+    width: 80px;
+    height: 60px;
+    min-width: 60px;
+
+    .el-icon {
+      font-size: 24px;
+    }
+
+    p {
+      font-size: 11px;
+    }
+  }
+}

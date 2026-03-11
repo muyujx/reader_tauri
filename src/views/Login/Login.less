@@ -92,3 +92,52 @@
   }
 
 }
+
+// 移动端适配 - 统一使用 90vw 宽度
+@media screen and (max-width: 768px) {
+  .login-page {
+    overflow: auto;
+    padding: 20px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .login-form, .register-form {
+    width: 90vw;
+    max-width: 500px;
+    height: auto;
+    min-height: 500px;
+    position: relative;
+    padding: 30px 20px;
+  }
+
+  .el-input {
+    width: 100%;
+    max-width: 300px;
+    
+    --el-input-height: 48px;
+    font-size: 16px;
+  }
+
+  .login-form, .register-form {
+    & > div {
+      width: 100%;
+      max-width: 300px;
+    }
+
+    & > div + div {
+      margin-top: 25px;
+    }
+
+    .button {
+      padding: 15px;
+      font-size: 16px;
+      min-height: 48px;
+    }
+
+    .toggle {
+      margin-top: 25px;
+      padding: 12px;
+      font-size: 14px;
+    }
+  }
+}

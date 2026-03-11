@@ -44,6 +44,11 @@ export default defineConfig(async () => ({
     port: 5173,
     strictPort: false,
     host: true,
+    hmr: {
+      protocol: 'ws',
+      host: host === '0.0.0.0' ? '192.168.1.207' : host,
+      // 不要硬编码 port，除非你有特殊防火墙需求
+    },
     // 配置代理，解决图片等静态资源请求
     proxy: {
       '/resource': {

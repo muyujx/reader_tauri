@@ -251,3 +251,84 @@
 
 
 }
+
+// 移动端适配 - 统一使用 90vw 宽度
+@media screen and (max-width: 768px) {
+  .reading_history {
+    :deep(.el-calendar) {
+      .el-calendar__header {
+        height: 40px;
+      }
+
+      .el-calendar__body {
+        height: calc(100% - 60px);
+      }
+
+      .el-calendar-table {
+        .el-calendar-day {
+          height: 60px;
+          padding: 2px;
+        }
+
+        thead {
+          height: 30px;
+        }
+
+        tbody td {
+          padding: 2px;
+          height: 50px;
+        }
+      }
+    }
+  }
+
+  .header_content {
+    width: 90vw;
+    font-size: 13px;
+  }
+
+  .day_content {
+    height: 50px;
+    font-size: 11px;
+    padding: 3px;
+  }
+
+  .day_book_list {
+    width: 90vw;
+    max-width: 500px;
+    min-width: unset;
+    height: 60%;
+    min-height: unset;
+    top: 15%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .book {
+    width: 90vw;
+    max-width: 280px;
+    height: 150px;
+    cursor: pointer;
+
+    .cover {
+      width: 80px;
+      height: 120px;
+    }
+  }
+
+  .detail {
+    width: 130px;
+
+    .name {
+      width: 110px;
+      font-size: 12px;
+    }
+
+    .item {
+      font-size: 10px;
+
+      p:first-child {
+        width: 40px;
+      }
+    }
+  }
+}
