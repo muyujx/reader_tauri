@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set PORT=5173
+set PORT=5174
 
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do (
     echo Killing process on port %PORT%: PID %%a

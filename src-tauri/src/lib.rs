@@ -15,15 +15,23 @@ use db::{
     book_update_read_progress, init_db, set_cache_dir, DbState,
 };
 
+// 窗口操作命令 - 桌面平台
+#[cfg(desktop)]
 #[tauri::command]
-fn window_minimize(window: tauri::Window) {
+fn window_minimize(window: tauri::WebviewWindow) {
     if let Err(e) = window.minimize() {
         eprintln!("minimize error: {}", e);
     }
 }
 
+// 移动端空实现
+#[cfg(not(desktop))]
 #[tauri::command]
-fn window_maximize(window: tauri::Window) {
+fn window_minimize(_window: tauri::WebviewWindow) {}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn window_maximize(window: tauri::WebviewWindow) {
     match window.is_maximized() {
         Ok(true) => {
             if let Err(e) = window.unmaximize() {
@@ -39,17 +47,33 @@ fn window_maximize(window: tauri::Window) {
     }
 }
 
+#[cfg(not(desktop))]
 #[tauri::command]
-fn window_close(window: tauri::Window) {
+fn window_maximize(_window: tauri::WebviewWindow) {}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn window_close(window: tauri::WebviewWindow) {
     info!("window_close called");
     if let Err(e) = window.close() {
         eprintln!("close error: {}", e);
     }
 }
 
+#[cfg(not(desktop))]
 #[tauri::command]
-fn is_maximized(window: tauri::Window) -> bool {
+fn window_close(_window: tauri::WebviewWindow) {}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn is_maximized(window: tauri::WebviewWindow) -> bool {
     window.is_maximized().unwrap_or(false)
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn is_maximized(_window: tauri::WebviewWindow) -> bool {
+    false
 }
 
 // 配置相关命令

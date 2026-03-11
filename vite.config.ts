@@ -42,15 +42,8 @@ export default defineConfig(async () => ({
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 5173,
-    strictPort: true,
-    host: "127.0.0.1",
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 5174,
-        }
-      : undefined,
+    strictPort: false,
+    host: true,
     // 配置代理，解决图片等静态资源请求
     proxy: {
       '/resource': {
