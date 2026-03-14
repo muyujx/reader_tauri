@@ -1,3 +1,4 @@
+// src-tauri/src/lib.rs
 use log::info;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewWindowBuilder};
@@ -15,7 +16,8 @@ use db::{
     book_update_read_progress, init_db, set_cache_dir, DbState,
 };
 
-// 窗口操作命令 - 桌面平台
+// ================= 窗口控制命令 =================
+
 #[cfg(desktop)]
 #[tauri::command]
 fn window_minimize(window: tauri::WebviewWindow) {
@@ -24,7 +26,6 @@ fn window_minimize(window: tauri::WebviewWindow) {
     }
 }
 
-// 移动端空实现
 #[cfg(not(desktop))]
 #[tauri::command]
 fn window_minimize(_window: tauri::WebviewWindow) {}
@@ -76,7 +77,8 @@ fn is_maximized(_window: tauri::WebviewWindow) -> bool {
     false
 }
 
-// 配置相关命令
+// ================= 配置相关命令 =================
+
 #[tauri::command]
 fn get_start_win_size(app: AppHandle) -> Vec<i32> {
     config_get_win_size(app)
@@ -100,39 +102,61 @@ fn change_root_cache_dir(app: AppHandle, dir: String) -> Result<bool, String> {
     Ok(true)
 }
 
+// ================= 主入口逻辑 =================
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
 
     tauri::Builder::default()
         .setup(|app| {
-            info!("[App] Starting application...");
+            info!("[App] Starting application setup...");
 
-            // 获取保存的窗口大小
-            let win_size = config_get_win_size(app.handle().clone());
-            info!("[App] Loaded window size: {}x{}", win_size[0], win_size[1]);
+            #[cfg(desktop)]
+            {
+                info!("[App] Detected Desktop environment.");
 
-            // 从配置创建窗口（可以动态修改配置）
-            let mut window_config = app.config().app.windows[0].clone();
-            window_config.width = win_size[0] as f64;
-            window_config.height = win_size[1] as f64;
+                // 1. 获取用户上次保存的窗口大小
+                let win_size = config_get_win_size(app.handle().clone());
+                info!("[App] Restoring window size: {}x{}", win_size[0], win_size[1]);
 
-            info!(
-                "[App] Creating window with size: {}x{}",
-                window_config.width, window_config.height
-            );
+                // 2. 克隆默认配置并修改大小
+                let mut window_config = app.config().app.windows[0].clone();
+                window_config.width = win_size[0] as f64;
+                window_config.height = win_size[1] as f64;
 
-            // 使用 from_config 手动创建窗口
-            let _window =
-                WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
+                // 确保标签名存在，默认为 "main"
+                if window_config.label.is_empty() {
+                    window_config.label = "main".to_string();
+                }
 
-            info!("[App] Window created successfully");
+                info!(
+                    "[App] Creating window with config: {}x{} (Label: {})",
+                    window_config.width, window_config.height, window_config.label
+                );
 
-            // 初始化数据库
+                // 3. 手动构建窗口
+                // 因为 main.rs 已经过滤了构建脚本，这里不会在构建时执行，所以安全
+                let _window = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
+                    .build()?;
+
+                info!("[App] Window created successfully.");
+            }
+
+            #[cfg(mobile)]
+            {
+                info!("[App] Detected Mobile environment. Skipping manual window creation (handled by OS).");
+                // 如果 tauri.conf.json 中 create: false 且移动端也需要手动创建，
+                // 可以在这里添加类似的 WebviewWindowBuilder 代码，但不需要恢复桌面坐标。
+            }
+
+            // ================= 通用逻辑：初始化数据库 =================
+            info!("[App] Initializing database...");
             let conn = init_db(app.handle()).expect("Failed to initialize database");
             app.manage(DbState(Mutex::new(Some(conn))));
+            info!("[App] Database initialized.");
 
-            info!("[App] Application started successfully");
+            info!("[App] Setup completed successfully.");
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
