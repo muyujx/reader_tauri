@@ -9,13 +9,12 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   root: 'src',
-  
+  base: './',
   plugins: [
     vue(),
     AutoImport({
@@ -46,8 +45,7 @@ export default defineConfig(async () => ({
     host: true,
     hmr: {
       protocol: 'ws',
-      host: host === '0.0.0.0' ? '192.168.1.207' : host,
-      // 不要硬编码 port，除非你有特殊防火墙需求
+      host: host || '10.0.2.2',
     },
     // 配置代理，解决图片等静态资源请求
     proxy: {

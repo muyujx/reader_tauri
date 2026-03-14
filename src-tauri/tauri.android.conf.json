@@ -1,0 +1,12 @@
+{
+  "build": {
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "windows": [
+      {
+        "create": true
+      }
+    ]
+  }
+}

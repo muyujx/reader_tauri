@@ -1,6 +1,6 @@
 
 ### 项目详情
-1. 这是一个 tauri 项目，拥有 web, pc, Android 端
+1. 这是一个 tauri 项目，拥有 web, pc, Android 端, 修改代码时注意多端适配
 
 ### 编码规范
 1. 不要硬编码

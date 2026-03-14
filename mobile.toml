@@ -1,5 +1,5 @@
 [app]
-name = "reader-tauri"
-stylized-name = "Reader Tauri"
-identifier = "com.example.reader_tauri"
+name = "reader"
+stylized-name = "Reader"
+identifier = "com.reader.desktop"
 template-pack = "bevy"
