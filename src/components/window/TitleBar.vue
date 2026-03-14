@@ -91,8 +91,13 @@ function close() {
     #close:hover {
         background-color: rgba(196, 43, 28, 0.7);
     }
+}
 
-
+// 移动端隐藏标题栏
+@media screen and (max-width: 768px) {
+    .title-bar {
+        display: none;
+    }
 }
 
 

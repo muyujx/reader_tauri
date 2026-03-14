@@ -9,10 +9,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
-const host = process.env.TAURI_DEV_HOST;
-
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   root: 'src',
   base: './',
   plugins: [
@@ -24,6 +22,14 @@ export default defineConfig(async () => ({
       resolvers: [ElementPlusResolver()],
     }),
   ],
+
+  css: {
+    preprocessorOptions: {
+      less: {
+        javascriptEnabled: true,
+      },
+    },
+  },
 
   resolve: {
     extensions: [".ts", ".js", ".json", ".vue"],
@@ -42,10 +48,11 @@ export default defineConfig(async () => ({
   server: {
     port: 5173,
     strictPort: false,
-    host: true,
+    host: '0.0.0.0',
     hmr: {
-      protocol: 'ws',
-      host: host || '10.0.2.2',
+      protocol: 'http',
+      host: '10.0.2.2',
+      port: 5173,
     },
     // 配置代理，解决图片等静态资源请求
     proxy: {
@@ -60,4 +67,4 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+});
