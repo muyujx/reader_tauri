@@ -6,24 +6,26 @@
                  v-model="calendarDate"
     >
       <template #header="{ date }">
-        <div>{{ date }}</div>
+        <div class="calendar-header">
+          <div class="header-date">{{ date }}</div>
+          
+          <div class="header_content">
+            <div>月阅读时间: {{ secondsToTimeStr(monthReadTime) }}</div>
+            <div>月阅读页数: {{ monthReadPage }}</div>
+          </div>
 
-        <div class="header_content">
-          <div>月阅读时间: {{ secondsToTimeStr(monthReadTime) }}</div>
-          <div>月阅读页数: {{ monthReadPage }}</div>
+          <el-button-group>
+            <el-button size="small" @click="selectDate('prev-month')">
+              上个月
+            </el-button>
+            <el-button size="small" @click="selectDate('today')">
+              今天
+            </el-button>
+            <el-button size="small" @click="selectDate('next-month')">
+              下个月
+            </el-button>
+          </el-button-group>
         </div>
-
-        <el-button-group>
-          <el-button size="small" @click="selectDate('prev-month')">
-            上个月
-          </el-button>
-          <el-button size="small" @click="selectDate('today')">
-            今天
-          </el-button>
-          <el-button size="small" @click="selectDate('next-month')">
-            下个月
-          </el-button>
-        </el-button-group>
       </template>
 
       <template #date-cell="{ data }">

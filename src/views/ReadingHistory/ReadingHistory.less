@@ -30,10 +30,8 @@
       .el-calendar-day {
         width: 100%;
         height: 120px;
-        //overflow: hidden;
         padding: 5px 0 0 0;
         margin: 0;
-        //background-color: #0b253a;
         box-sizing: border-box;
         border-radius: 10px;
 
@@ -59,7 +57,6 @@
           padding: 5px;
           border: none;
           height: 100px;
-
         }
       }
 
@@ -70,7 +67,6 @@
       .current {
         color: var(--foreground);
       }
-
 
       .current, .prev, .next {
         background-color: var(--background);
@@ -99,12 +95,9 @@
   flex-direction: column;
   justify-content: space-around;
   padding: 5px;
-  //background-color: #0c969b;
-
 
   div {
     margin-top: 5px;
-    //background-color: #0b253a;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -127,9 +120,6 @@
   grid-template-rows: repeat(auto-fill, 200px);
   place-items: center;
   justify-content: center;
-
-  //align-items: start;
-  //justify-content: start;
 
   top: 10%;
   left: 50%;
@@ -207,7 +197,6 @@
   flex-direction: column;
   justify-content: start;
   align-items: start;
-  //background-color: #3A66D1;
   width: 170px;
   height: 100%;
   position: relative;
@@ -221,9 +210,7 @@
     font-size: 13px;
     margin-top: 1px;
 
-
     p:first-child {
-      //background-color: #1E611E;
       width: 60px;
     }
 
@@ -231,7 +218,6 @@
       margin: 0;
     }
   }
-
 
   .name {
     width: 150px;
@@ -245,95 +231,8 @@
     justify-content: center;
     text-align: center;
     text-wrap: wrap;
-
-    //background-color: #1E611E;
   }
-
 
 }
 
-// 移动端适配 - 统一使用 90vw 宽度
-@media screen and (max-width: 768px) {
-  .reading_history {
-    :deep(.el-calendar) {
-      .el-calendar__header {
-        height: 35px;
-        padding: 5px;
-      }
-
-      .el-calendar__body {
-        height: calc(100% - 55px);
-      }
-
-      .el-calendar-table {
-        .el-calendar-day {
-          height: 45px;
-          padding: 2px;
-        }
-
-        thead {
-          height: 25px;
-          font-size: 12px;
-        }
-
-        tbody td {
-          padding: 1px;
-          height: 40px;
-        }
-      }
-    }
-  }
-
-  .header_content {
-    width: 90vw;
-    font-size: 11px;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .day_content {
-    height: 35px;
-    font-size: 10px;
-    padding: 2px;
-  }
-
-  .day_book_list {
-    width: 90vw;
-    max-width: 500px;
-    min-width: unset;
-    height: 60%;
-    min-height: unset;
-    top: 15%;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .book {
-    width: 90vw;
-    max-width: 280px;
-    height: 150px;
-    cursor: pointer;
-
-    .cover {
-      width: 80px;
-      height: 120px;
-    }
-  }
-
-  .detail {
-    width: 130px;
-
-    .name {
-      width: 110px;
-      font-size: 12px;
-    }
-
-    .item {
-      font-size: 10px;
-
-      p:first-child {
-        width: 40px;
-      }
-    }
-  }
-}
+@import "./ReadingHistory.mobile.less";
