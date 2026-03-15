@@ -86,6 +86,7 @@
     justify-content: center;
     align-items: center;
     border: 3px solid transparent;
+    cursor: pointer;
 
 
     &.active {
@@ -95,12 +96,46 @@
 
 }
 
+// 主题选择当前显示
+.theme-current {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 15px;
+  border-radius: 5px;
+  min-width: 100px;
+  height: 40px;
+  color: var(--foreground);
+  background-color: var(--background);
+
+  span:first-child {
+    flex: 1;
+    text-align: center;
+  }
+
+  .arrow {
+    font-size: 10px;
+    margin-left: 8px;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
 .scale-config {
   display: flex;
   align-items: center;
 
   p {
     margin-right: 10px;
+  }
+
+  .scale-value {
+    font-size: inherit;
+    margin-left: 4px;
   }
 
   .scale-select {
@@ -234,16 +269,17 @@
       margin-bottom: 8px;
     }
 
+    .scale-value {
+      margin-left: 4px;
+    }
+
     .scale-select {
       width: 100%;
       margin-left: 0;
     }
 
     .scale-indicator {
-      width: 100%;
-      text-align: left;
-      margin-left: 0;
-      margin-top: 8px;
+      display: none;
     }
   }
 
@@ -279,6 +315,74 @@
     p {
       width: 100px;
       font-size: 13px;
+    }
+  }
+
+  // 手机端主题选择
+  .theme-current {
+    width: 100%;
+    padding: 12px 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+
+    span:first-child {
+      font-size: 14px;
+    }
+  }
+}
+
+// 主题对话框样式 - 使用自定义模态框
+.theme-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.theme-dialog-box {
+  background-color: var(--background);
+  width: 90vw;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.theme-dialog-content {
+  background-color: var(--background);
+}
+
+.theme-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  justify-content: center;
+  
+  .theme-item {
+    width: 100%;
+    height: 36px;
+    min-height: 36px;
+    font-size: 12px;
+    margin: 0;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 2px solid transparent;
+
+    &.active {
+      border-color: var(--foreground);
+    }
+
+    p {
+      margin: 0;
+      font-size: 11px;
     }
   }
 }

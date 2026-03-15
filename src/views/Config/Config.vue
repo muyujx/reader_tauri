@@ -31,7 +31,7 @@
             </div>
 
 
-            <div class="config-item">
+            <div class="config-item hide-on-mobile">
 
                 <div class="config-title">
                     缓存目录:
@@ -48,24 +48,38 @@
                     主题选择:
                 </div>
 
-                <div class="theme-list">
-                    <div class="theme-item"
-                         v-for="(value, name) in Theme"
-                         :class="{
-                             [value]: true,
-                             'active': value === curTheme.current
-                         }"
-                         :key="value"
-                         @click.stop="chooseTheme(value)">
-                        <p>{{ name }}</p>
-                    </div>
+                <div class="theme-current" :class="curTheme.current" @click="showThemeDialog = true">
+                    <span>{{ themeNameMap[curTheme.current] }}</span>
+                    <span class="arrow">▼</span>
                 </div>
 
             </div>
 
+            <!-- 主题选择对话框 -->
+            <Teleport to="body">
+                <div v-if="showThemeDialog" class="theme-dialog-overlay" @click="showThemeDialog = false">
+                    <div class="theme-dialog-box" @click.stop>
+                        <div class="theme-dialog-content">
+                            <div class="theme-list">
+                                <div class="theme-item"
+                                    v-for="(value, name) in Theme"
+                                    :class="{
+                                        [value]: true,
+                                        'active': value === curTheme.current
+                                    }"
+                                    :key="value"
+                                    @click="chooseTheme(value)">
+                                    <p>{{ name }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Teleport>
+
             <div class="config-item scale-config">
                 <div class="config-title">
-                    书页放大:
+                    书页放大: <span class="scale-value">{{ scale.current }}</span>
                 </div>
 
                 <el-slider
@@ -75,10 +89,6 @@
                     :show-tooltip="false"
                     :min="0"
                     :max="50"/>
-
-                <div class="scale-indicator">
-                    {{ scale.current }}
-                </div>
             </div>
 
             <div class="config-item hide-on-mobile">
@@ -141,9 +151,15 @@ const curTheme = themeStore();
 const scale = scaleStore();
 const winSize = ref([0, 0]);
 const userInfo = userStore();
+const showThemeDialog = ref(false);
 
 const cacheDir = ref('');
 const router = useRouter();
+
+// 主题名称映射 - 直接使用枚举键名
+const themeNameMap: Record<string, string> = Object.fromEntries(
+    Object.entries(Theme).map(([key, value]) => [value, key])
+);
 
 const version = import.meta.env.VITE_APP_VERSION;
 const buildTime = import.meta.env.VITE_APP_BUILD_TIME;
@@ -182,6 +198,7 @@ function chooseTheme(theme: Theme) {
     curTheme.current = theme;
     bodyClassList.add(theme);
     setLocalStorage("theme", theme);
+    showThemeDialog.value = false;
 }
 
 function scaleChange(val: number) {
