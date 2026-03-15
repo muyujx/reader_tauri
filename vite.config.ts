@@ -9,6 +9,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
+// 获取当前时间作为构建时间
+const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
 // https://vite.dev/config/
 export default defineConfig({
   root: 'src',
@@ -22,6 +25,11 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
+
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
+    'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
+  },
 
   css: {
     preprocessorOptions: {
