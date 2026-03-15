@@ -1,5 +1,5 @@
 {
-  "dev_mod": false,
+  "dev_mod": true,
   "server_prod_host": "http://43.136.218.87",
-  "server_dev_host": "http://127.0.0.1:19898"
+  "server_dev_host": "http://192.168.1.207:5173"
 }

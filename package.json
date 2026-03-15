@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:android": "tsc && vite build --mode android",
+    "build:android": "tsc && vite build && node -e \"const fs=require('fs');const path=require('path');const src='dist';const dest='src-tauri/gen/android/app/src/main/assets';function copyDir(s,d){if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).forEach(f=>{const sp=path.join(s,f),dp=path.join(d,f);fs.statSync(sp).isDirectory()?copyDir(sp,dp):fs.copyFileSync(sp,dp)})};copyDir(src,dest);console.log('Copied dist to Android assets')\"",
     "preview": "vite preview",
     "tauri": "tauri dev",
+    "tauri:dev": "tauri dev",
     "tauri:build": "npm run build && tauri build",
     "tauri:build:win": "npm run build && tauri build --target x86_64-pc-windows-msvc",
     "tauri:build:android": "npm run build:android && tauri android build --apk",

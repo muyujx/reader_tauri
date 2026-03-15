@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "identifier": "com.reader.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
