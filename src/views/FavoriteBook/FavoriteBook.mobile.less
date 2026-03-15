@@ -1,106 +1,42 @@
-// 收藏页面手机端适配
+// 收藏页面手机端适配 - 只保留容器和分页样式，卡片使用桌面端样式
 @media screen and (max-width: 800px) {
   .favorite {
     padding: 10px;
     padding-bottom: 10px;
     box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .books {
-    flex: 1;
     width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(0, 400px));
+    grid-row-gap: 20px;
+    place-items: center;
+    justify-content: center;
+    align-content: start;
+    box-sizing: border-box;
+    user-select: none;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 5px;
-    box-sizing: border-box;
-    -webkit-overflow-scrolling: touch;
-  }
 
-  .book {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    min-height: 120px;
-    border-radius: 8px;
-    padding: 8px;
-    box-sizing: border-box;
-    cursor: pointer;
-
-    .cover {
-      width: 80px;
-      height: 110px;
-      border-radius: 6px;
-      flex-shrink: 0;
+    // 隐藏滚动条
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
     }
-  }
-
-  .detail {
-    flex: 1;
-    width: auto;
-    padding: 0 8px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
-    .name {
-      width: 100%;
-      font-size: 13px;
-      min-height: 30px;
-      text-align: left;
-      justify-content: flex-start;
-    }
-
-    .item {
-      font-size: 10px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-
-      p:first-child {
-        width: auto;
-        flex-shrink: 0;
-      }
-
-      p {
-        margin: 0;
-      }
-
-      .detail_item_content {
-        flex: 1;
-        min-width: 0;
-
-        p {
-          width: auto;
-        }
-
-        .el-progress {
-          margin: 2px 0;
-        }
-      }
-    }
-
-    .cancel-favorite,
-    .download-book,
-    .download-progress,
-    .download-complete {
-      position: relative;
-      bottom: auto;
-      right: auto;
-      left: auto;
-      width: 28px;
-      height: 24px;
-      margin-left: 8px;
-      flex-shrink: 0;
-    }
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
   .el-pagination {
     flex-shrink: 0;
     padding: 0;
-    margin-top: 5px;
+    margin-top: 10px;
     margin-bottom: 10px;
     width: 100%;
     display: flex;

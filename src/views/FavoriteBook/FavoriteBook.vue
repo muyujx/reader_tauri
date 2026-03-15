@@ -33,106 +33,109 @@
 
                 <div class="detail">
 
-                    <div class="cancel-favorite"
-                         @click="cancelFavorite(book.bookId)"
-                    >
+                    <div class="detail-content">
+                        <p class="name">{{ book.bookName }}</p>
 
-                        <el-icon>
-                            <StarFilled/>
-                        </el-icon>
+                        <div class="item">
+                            <p>阅读进度:</p>
 
-                    </div>
+                            <div class="detail_item_content">
+                                <p>{{ book.lastRead == 0 ? 0 : book.page }} / {{ book.totalPage }} 页</p>
 
-                    <div class="download-book"
-                         @click.stop="downloadBook(book)"
-                         v-if="!downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.downloaded && !downloadStatus[book.bookId]?.hasPartialDownload"
-                    >
-                        <el-icon>
-                            <Download/>
-                        </el-icon>
-                    </div>
+                                <el-progress
+                                    :text-inside="true"
+                                    :stroke-width="15"
+                                    :format="num => `${num == 0 ? '0' : num.toFixed(2)}%`"
+                                    :percentage="book.lastRead == 0 ? 0 : (book.page / book.totalPage * 100)"
+                                />
 
-                    <div class="download-progress clickable"
-                         @click.stop="handleDownloadClick(book)"
-                         v-else-if="downloadStatus[book.bookId]?.hasPartialDownload && !downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.paused"
-                         title="点击继续下载"
-                    >
-                        <el-progress
-                            type="circle"
-                            :width="24"
-                            :percentage="downloadStatus[book.bookId]?.progress || 0"
-                            :show-text="false"
-                        />
-                        <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
-                    </div>
-
-                    <div class="download-progress clickable"
-                         @click.stop="handleDownloadClick(book)"
-                         v-else-if="downloadStatus[book.bookId]?.paused"
-                         title="点击继续下载"
-                    >
-                        <el-progress
-                            type="circle"
-                            :width="24"
-                            :percentage="downloadStatus[book.bookId]?.progress || 0"
-                            :show-text="false"
-                        />
-                        <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
-                    </div>
-
-                    <div class="download-progress clickable"
-                         @click.stop="handleDownloadClick(book)"
-                         v-else-if="downloadStatus[book.bookId]?.downloading"
-                         title="点击暂停"
-                    >
-                        <el-progress
-                            type="circle"
-                            :width="24"
-                            :percentage="downloadStatus[book.bookId]?.progress || 0"
-                            :show-text="false"
-                        />
-                        <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
-                    </div>
-
-                    <div class="download-complete"
-                         v-else-if="downloadStatus[book.bookId]?.downloaded"
-                    >
-                        <el-icon color="#67c23a">
-                            <CircleCheck/>
-                        </el-icon>
-                    </div>
-
-                    <p class="name">{{ book.bookName }}</p>
-
-                    <div class="item">
-                        <p>阅读进度:</p>
-
-                        <div class="detail_item_content">
-                            <p>{{ book.lastRead == 0 ? 0 : book.page }} / {{ book.totalPage }} 页</p>
-
-                            <el-progress
-                                :text-inside="true"
-                                :stroke-width="15"
-                                :format="num => `${num == 0 ? '0' : num.toFixed(2)}%`"
-                                :percentage="book.lastRead == 0 ? 0 : (book.page / book.totalPage * 100)"
-                            />
+                            </div>
 
                         </div>
 
+                        <div class="item">
+                            <p>阅读时间:</p>
+                            <p>{{ readCost(book.readingCost) }}</p>
+                        </div>
+
+                        <div class="item">
+                            <p>上次阅读:</p>
+                            <p>{{
+                                    book.lastRead == 0 ? '未阅读' : getLastRead(book.lastRead)
+                                }}</p>
+                        </div>
                     </div>
 
-                    <div class="item">
-                        <p>阅读时间:</p>
-                        <p>{{ readCost(book.readingCost) }}</p>
-                    </div>
+                    <div class="action-buttons">
+                        <div class="download-book"
+                             @click.stop="downloadBook(book)"
+                             v-if="!downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.downloaded && !downloadStatus[book.bookId]?.hasPartialDownload"
+                        >
+                            <el-icon>
+                                <Download/>
+                            </el-icon>
+                        </div>
 
-                    <div class="item">
-                        <p>上次阅读:</p>
-                        <p>{{
-                                book.lastRead == 0 ? '未阅读' : getLastRead(book.lastRead)
-                            }}</p>
-                    </div>
+                        <div class="download-progress clickable"
+                             @click.stop="handleDownloadClick(book)"
+                             v-else-if="downloadStatus[book.bookId]?.hasPartialDownload && !downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.paused"
+                             title="点击继续下载"
+                        >
+                            <el-progress
+                                type="circle"
+                                :width="24"
+                                :percentage="downloadStatus[book.bookId]?.progress || 0"
+                                :show-text="false"
+                            />
+                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
+                        </div>
 
+                        <div class="download-progress clickable"
+                             @click.stop="handleDownloadClick(book)"
+                             v-else-if="downloadStatus[book.bookId]?.paused"
+                             title="点击继续下载"
+                        >
+                            <el-progress
+                                type="circle"
+                                :width="24"
+                                :percentage="downloadStatus[book.bookId]?.progress || 0"
+                                :show-text="false"
+                            />
+                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
+                        </div>
+
+                        <div class="download-progress clickable"
+                             @click.stop="handleDownloadClick(book)"
+                             v-else-if="downloadStatus[book.bookId]?.downloading"
+                             title="点击暂停"
+                        >
+                            <el-progress
+                                type="circle"
+                                :width="24"
+                                :percentage="downloadStatus[book.bookId]?.progress || 0"
+                                :show-text="false"
+                            />
+                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
+                        </div>
+
+                        <div class="download-complete"
+                             v-else-if="downloadStatus[book.bookId]?.downloaded"
+                        >
+                            <el-icon color="#67c23a">
+                                <CircleCheck/>
+                            </el-icon>
+                        </div>
+
+                        <div class="cancel-favorite"
+                             @click="cancelFavorite(book.bookId)"
+                        >
+
+                            <el-icon>
+                                <StarFilled/>
+                            </el-icon>
+
+                        </div>
+                    </div>
 
                 </div>
 
@@ -159,7 +162,7 @@
 
 <script setup lang="ts">
 import {addHost} from "../../apis/request.ts";
-import {onUnmounted, ref, computed} from "vue";
+import {onMounted, onUnmounted, ref, computed} from "vue";
 import {useRouter} from "vue-router";
 import {BookTag} from "../../model/bookTag.ts";
 import {getAllTag} from "../../apis/bookTag.ts";
@@ -172,7 +175,7 @@ import hotkeys from "hotkeys-js";
 import windowSizeListener from "../../service/windowSize.ts";
 import {formatDistanceToNow} from 'date-fns';
 import {zhCN} from 'date-fns/locale';
-import {bookGridConfig} from "../../common/responsiveConfig.ts";
+import {favoriteGridConfig, initResponsiveConfig} from "../../common/responsiveConfig.ts";
 import {
     downloadBook as downloadBookApi,
     resumeBookDownload,
@@ -186,12 +189,17 @@ import {
 const bookList = ref(new Array<FavoriteBookInfo>());
 const page = ref(1);
 const pageSize = ref(12);
-const pagerCount = computed(() => bookGridConfig.value.pagerCount);
+const pagerCount = computed(() => favoriteGridConfig.value.pagerCount);
 const totalPage = ref(1);
+
+// 获取每页数量
+function getPageSize(): number {
+    return favoriteGridConfig.value.pageSize;
+}
 
 // 手机端隐藏翻页按钮，用滑动替代
 const paginationLayout = computed(() => {
-    return bookGridConfig.value.showPaginationArrows ? 'prev, pager, next, jumper' : 'pager';
+    return favoriteGridConfig.value.showPaginationArrows ? 'prev, pager, next, jumper' : 'pager';
 });
 
 const router = useRouter();
@@ -211,19 +219,18 @@ interface DownloadStatus {
 const downloadStatus = ref<Record<number, DownloadStatus>>({});
 
 // 监听窗口大小变化，修改 pageSize
-const onWindowSizeChange = (width: number, height: number) => {
-    let curPageSize = 12;
-    if (height < 500) {
-        curPageSize = 4;
-    } else if (height <= 900) {
-        curPageSize = 9;
-    }
-    if (pageSize.value != curPageSize) {
+const onWindowSizeChange = () => {
+    const curPageSize = getPageSize();
+    if (pageSize.value !== curPageSize) {
         pageSize.value = curPageSize;
+        page.value = 1;
         getBookList();
     }
 };
 windowSizeListener.on(onWindowSizeChange);
+onMounted(() => {
+    initResponsiveConfig();
+});
 onUnmounted(() => {
     console.log("----- FavoriteBook Unmounted ---");
     windowSizeListener.delete(onWindowSizeChange);
@@ -427,6 +434,9 @@ function enter() {
     hotkeys('left, a, s, page up', 'favorite', () => jumpToPage(page.value - 1));
     hotkeys('right, f, d, page down', 'favorite', () => jumpToPage(page.value + 1));
     hotkeys.setScope('favorite');
+
+    // 初始化每页数量
+    pageSize.value = getPageSize();
 
     // 获取书籍标签
     getAllTag().then(res => {

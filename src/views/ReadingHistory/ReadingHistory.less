@@ -257,26 +257,28 @@
   .reading_history {
     :deep(.el-calendar) {
       .el-calendar__header {
-        height: 40px;
+        height: 35px;
+        padding: 5px;
       }
 
       .el-calendar__body {
-        height: calc(100% - 60px);
+        height: calc(100% - 55px);
       }
 
       .el-calendar-table {
         .el-calendar-day {
-          height: 60px;
+          height: 45px;
           padding: 2px;
         }
 
         thead {
-          height: 30px;
+          height: 25px;
+          font-size: 12px;
         }
 
         tbody td {
-          padding: 2px;
-          height: 50px;
+          padding: 1px;
+          height: 40px;
         }
       }
     }
@@ -284,13 +286,16 @@
 
   .header_content {
     width: 90vw;
-    font-size: 13px;
+    font-size: 11px;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
   }
 
   .day_content {
-    height: 50px;
-    font-size: 11px;
-    padding: 3px;
+    height: 35px;
+    font-size: 10px;
+    padding: 2px;
   }
 
   .day_book_list {

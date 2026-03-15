@@ -44,6 +44,29 @@ const bookGridConfig = computed(() => {
     };
 });
 
+// 收藏页网格配置 - 手机端每页3个
+const favoriteGridConfig = computed(() => {
+    const width = windowWidth.value;
+    if (width <= breakpoints.mobile) {
+        return {
+            pageSize: 3,
+            pagerCount: 5,
+            showPaginationArrows: false,
+        };
+    } else if (width <= breakpoints.tablet) {
+        return {
+            pageSize: 8,
+            pagerCount: 6,
+            showPaginationArrows: true,
+        };
+    }
+    return {
+        pageSize: 12,
+        pagerCount: 7,
+        showPaginationArrows: true,
+    };
+});
+
 // 是否为手机端
 const isMobile = computed(() => windowWidth.value <= breakpoints.mobile);
 
@@ -72,6 +95,7 @@ export {
     windowHeight,
     breakpoints,
     bookGridConfig,
+    favoriteGridConfig,
     isMobile,
     isTablet,
     isDesktop,

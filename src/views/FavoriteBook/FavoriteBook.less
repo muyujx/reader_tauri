@@ -44,26 +44,94 @@
 .detail {
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: start;
-  align-items: start;
+  align-items: stretch;
   //background-color: #3A66D1;
-  width: 170px;
+  width: 240px;
   height: 100%;
-  position: relative;
+
+  .detail-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 200px;
+    padding: 10px 0;
+    box-sizing: border-box;
+
+    .name {
+      width: 180px;
+      min-height: 40px;
+      margin: 0;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-wrap: wrap;
+    }
+
+    .item + .item {
+      margin-top: 6px;
+    }
+
+    .item {
+      display: flex;
+      font-size: 12px;
+
+
+      p:first-child {
+        width: 60px;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .detail_item_content {
+        display: flex;
+        flex-direction: column;
+
+        p {
+          width: 130px;
+        }
+
+        .el-progress {
+          margin-top: 4px;
+          margin-bottom: 4px;
+
+          :deep(.el-progress-bar__innerText) {
+            color: var(--foreground);
+          }
+
+        }
+
+      }
+
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px 5px 10px 0;
+    box-sizing: border-box;
+    height: 100%;
+  }
 
   .cancel-favorite {
-    position: absolute;
-    bottom: -3px;
-    right: -3px;
-
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 40px;
+    width: 30px;
     height: 30px;
-
-    border-radius: 10px 0 0 0;
+    border-radius: 10px;
 
     &:hover {
       color: var(--primary);
@@ -71,63 +139,18 @@
 
     .el-icon {
       color: var(--primary);
-      font-size: 25px;
+      font-size: 20px;
     }
-  }
-
-  .item + .item {
-    margin-top: 3px;
-  }
-
-  .item {
-    display: flex;
-    font-size: 12px;
-    margin-top: 1px;
-
-
-    p:first-child {
-      //background-color: #1E611E;
-      width: 60px;
-    }
-
-    p {
-      margin: 0;
-    }
-
-    .detail_item_content {
-      display: flex;
-      flex-direction: column;
-
-      p {
-        width: 100px;
-      }
-
-      .el-progress {
-        margin-top: 5px;
-        margin-bottom: 5px;
-
-        :deep(.el-progress-bar__innerText) {
-          color: var(--foreground);
-        }
-
-      }
-
-    }
-
   }
 
   .download-book {
-    position: absolute;
-    bottom: -3px;
-    left: -3px;
-
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 40px;
+    width: 30px;
     height: 30px;
 
-    border-radius: 0 10px 0 0;
+    border-radius: 10px;
 
     &:hover {
       color: var(--primary);
@@ -140,18 +163,14 @@
   }
 
   .download-progress {
-    position: absolute;
-    bottom: -3px;
-    left: -3px;
-
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 40px;
+    width: 30px;
     height: 30px;
     box-sizing: border-box;
 
-    border-radius: 0 10px 0 0;
+    border-radius: 10px;
 
     &.clickable {
       cursor: pointer;
@@ -174,7 +193,6 @@
     }
 
     .progress-text {
-      position: absolute;
       font-size: 11px;
       font-weight: bold;
       color: var(--foreground);
@@ -182,42 +200,20 @@
   }
 
   .download-complete {
-    position: absolute;
-    bottom: -3px;
-    left: -3px;
-
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 40px;
+    width: 30px;
     height: 30px;
 
-    border-radius: 0 10px 0 0;
+    border-radius: 10px;
   }
-
-
-  .name {
-    width: 150px;
-    min-height: 70px;
-    margin-top: 0;
-    margin-bottom: 0;
-    font-size: 15px;
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    text-wrap: wrap;
-
-    //background-color: #1E611E;
-  }
-
 
 }
 
 
 .book {
-  width: 300px;
+  width: 380px;
   height: 190px;
   border-radius: 10px;
   box-sizing: border-box;
@@ -226,7 +222,7 @@
 
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
 
   border: 3px solid transparent;
   transition: all ease 300ms;
@@ -240,6 +236,7 @@
     position: relative;
     border: 3px solid transparent;
     transition: all ease 0.5s;
+    align-self: center;
 
 
     img {

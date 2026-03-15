@@ -26,6 +26,13 @@ html, body, #app, #main {
   background-color: var(--background);
 }
 
+// 手机端顶部状态栏适配 - 隐藏标题栏后增加顶部空间
+@media screen and (max-width: 800px) {
+  #main {
+    padding-top: 30px;
+  }
+}
+
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;
