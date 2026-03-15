@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 
 // 响应式配置 - 屏幕适配配置
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920);

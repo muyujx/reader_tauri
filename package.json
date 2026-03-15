@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:android": "tsc && vite build --mode android",
     "preview": "vite preview",
     "tauri": "tauri dev",
     "tauri:build": "npm run build && tauri build",
     "tauri:build:win": "npm run build && tauri build --target x86_64-pc-windows-msvc",
-    "tauri:build:android": "npm run build && tauri android build --apk",
+    "tauri:build:android": "npm run build:android && tauri android build --apk",
     "tauri:android:dev": "tauri android dev"
   },
   "dependencies": {
