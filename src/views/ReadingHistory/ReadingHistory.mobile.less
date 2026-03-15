@@ -1,0 +1,139 @@
+// 阅读记录页面手机端适配
+@media screen and (max-width: 768px) {
+  .reading_history {
+    :deep(.el-calendar) {
+      .el-calendar__header {
+        height: auto;
+        padding: 5px;
+      }
+
+      .el-calendar__body {
+        height: calc(100% - 130px);
+      }
+
+      .el-calendar-table {
+        thead {
+          height: 25px;
+          font-size: 12px;
+        }
+
+        tbody td {
+          padding: 0;
+          height: 100px !important;
+        }
+
+        .el-calendar-day {
+          height: 100px !important;
+          padding: 4px;
+          box-sizing: border-box;
+        }
+      }
+    }
+  }
+
+  .calendar-header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    .header-date {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .header_content {
+      width: 170px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      
+      div {
+        display: block;
+        text-align: left;
+        padding-left: 20px;
+      }
+    }
+
+    .el-button-group {
+      display: flex;
+      gap: 8px;
+
+      .el-button {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .day_content {
+    height: 45px;
+    font-size: 11px;
+    padding: 2px;
+  }
+
+  .day_book_list {
+    width: 90vw;
+    max-width: 500px;
+    min-width: unset;
+    height: 70%;
+    min-height: unset;
+    top: 15%;
+    left: 5%;
+    transform: none;
+    margin-left: 0;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .book {
+    width: 100%;
+    max-width: 280px;
+    height: 150px;
+    cursor: pointer;
+    display: flex;
+    justify-content: flex-start;
+
+    .cover {
+      width: 80px;
+      height: 120px;
+      margin-right: 20px;
+      flex-shrink: 0;
+    }
+  }
+
+  .detail {
+    width: 180px;
+    padding: 5px;
+    box-sizing: border-box;
+
+    .name {
+      width: 160px;
+      font-size: 14px;
+      min-height: 40px;
+      margin-bottom: 12px;
+    }
+
+    .item {
+      display: flex;
+      font-size: 12px;
+      white-space: nowrap;
+      margin-top: 10px;
+
+      p:first-child {
+        width: auto;
+        min-width: 50px;
+        flex-shrink: 0;
+        margin-right: 8px;
+      }
+
+      p:last-child {
+        white-space: nowrap;
+        overflow: visible;
+      }
+    }
+  }
+}
