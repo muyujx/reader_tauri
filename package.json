@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:android": "tsc && vite build && node -e \"const fs=require('fs');const path=require('path');const src='dist';const dest='src-tauri/gen/android/app/src/main/assets';function copyDir(s,d){if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true});fs.readdirSync(s).forEach(f=>{const sp=path.join(s,f),dp=path.join(d,f);fs.statSync(sp).isDirectory()?copyDir(sp,dp):fs.copyFileSync(sp,dp)})};copyDir(src,dest);console.log('Copied dist to Android assets')\"",
+    "build:android": "tsc && vite build && node scripts/build-android.cjs",
     "preview": "vite preview",
     "tauri": "tauri dev",
     "tauri:dev": "tauri dev",
