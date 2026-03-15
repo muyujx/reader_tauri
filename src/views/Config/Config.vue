@@ -18,7 +18,7 @@
             </div>
 
 
-            <div class="config-item">
+            <div class="config-item hide-on-mobile">
 
                 <div class="config-title">
                     初始窗口:
@@ -81,7 +81,7 @@
                 </div>
             </div>
 
-            <div class="config-item">
+            <div class="config-item hide-on-mobile">
 
                 <div class="config-title">
                     快捷键:
