@@ -110,8 +110,9 @@
         <el-pagination
             v-model:current-page="page"
             v-model:page-size="pageSize"
-            layout="prev, pager, next, jumper"
+            :layout="paginationLayout"
             :page-count="totalPage"
+            :pager-count="pagerCount"
             @current-change="jumpToPage"
         />
 
@@ -122,7 +123,7 @@
 <style scoped src="./BookShelf.less" lang="less"/>
 
 <script setup lang="ts">
-import {useTemplateRef, ref} from "vue";
+import {useTemplateRef, ref, onMounted, onUnmounted, computed} from "vue";
 import {useRouter} from "vue-router";
 import {BookInfo as ShelfBookInfo, BookShelfList} from "../../model/pageModel";
 import {getBookInfoList} from "../../apis/book";
@@ -150,6 +151,7 @@ import {
     BookInfo
 } from "../../apis/bookDownload.ts";
 import {CircleCheck} from "@element-plus/icons-vue";
+import {bookGridConfig, isMobile, initResponsiveConfig} from "../../common/responsiveConfig.ts";
 
 const PAGE_LIST_INDEX = "page_list_index";
 const PAGE_TAG_LOCAL = "page_tag_local";
@@ -161,7 +163,14 @@ const DEFAULT_SEARCH_STR = "";
 
 const page = ref(1);
 const pageSize = ref(18);
+const pagerCount = ref(7); // 手机端会动态调整
 const totalPage = ref(1);
+
+// 手机端隐藏翻页按钮，用滑动替代
+const paginationLayout = computed(() => {
+    return bookGridConfig.value.showPaginationArrows ? 'prev, pager, next' : 'pager';
+});
+
 const booKList = ref(new Array<BookInfo>());
 const router = useRouter();
 const searchStr = ref('');
@@ -184,6 +193,34 @@ let tagBookId = -1;
 
 console.log("---------- bookshelf setup ---------");
 
+// 使用全局配置
+function getPageSize(): number {
+    return bookGridConfig.value.pageSize;
+}
+
+function getPagerCount(): number {
+    return bookGridConfig.value.pagerCount;
+}
+
+// 监听窗口大小变化，重新计算每页数量
+function handleResize() {
+    const newPageSize = getPageSize();
+    if (newPageSize !== pageSize.value) {
+        pageSize.value = newPageSize;
+        pagerCount.value = getPagerCount();
+        page.value = 1; // 重置到第一页
+        getBookList();
+    }
+}
+
+onMounted(() => {
+    const cleanup = initResponsiveConfig();
+    window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleResize);
+});
 
 initPage();
 
@@ -192,6 +229,10 @@ function initPage(): void {
     page.value = getLocalStorageInt(PAGE_LIST_INDEX, DEFAULT_FIRST_PAGE);
     tag.value = getLocalStorageInt(PAGE_TAG_LOCAL, DEFAULT_TAG);
     searchStr.value = getLocalStorage(PAGE_LIST_SEARCH, DEFAULT_SEARCH_STR);
+    
+    // 使用全局配置
+    pageSize.value = getPageSize();
+    pagerCount.value = getPagerCount();
 }
 
 function toBookPage(bookId: number, favorite: boolean) {

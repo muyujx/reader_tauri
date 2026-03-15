@@ -298,67 +298,6 @@
   }
 }
 
-
-@media screen and (max-width: 800px) {
-  .shelf {
-    font-size: 13px;
-    --el-font-size-base: 12px;
-  }
-
-  .search {
-    width: 90vw;
-    max-width: 300px;
-    height: 45px;
-
-    .search-input {
-      height: 40px;
-    }
-  }
-
-  .books {
-    height: 500px;
-
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(0, 100px));
-    grid-template-rows: repeat(auto-fill, 150px);
-    grid-row-gap: 20px;
-    place-items: center;
-    justify-content: center;
-    -webkit-overflow-scrolling: touch;
-
-  }
-
-  .book {
-    width: 88px;
-    height: 133px;
-    border-radius: 7px;
-
-    .cover {
-      width: 75px;
-      height: 110px;
-      border-radius: 7px;
-    }
-
-    .name {
-      margin-top: 1px;
-    }
-  }
-
-  .el-pagination {
-    margin-bottom: 5px;
-    margin-top: 5px;
-
-    button, li {
-      width: 30px;
-      height: 30px;
-      margin: 0 5px;
-      border-radius: 8px;
-    }
-  }
-
-
-}
-
-
+@import "./BookShelf.mobile.less";
 
 

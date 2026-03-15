@@ -144,10 +144,10 @@
         <el-pagination
             v-model:current-page="page"
             v-model:page-size="pageSize"
-            layout="prev, pager, next, jumper"
+            :layout="paginationLayout"
             :page-count="totalPage"
+            :pager-count="pagerCount"
             @current-change="jumpToPage"
-            hide-on-single-page
         />
 
     </div>
@@ -159,7 +159,7 @@
 
 <script setup lang="ts">
 import {addHost} from "../../apis/request.ts";
-import {onUnmounted, ref} from "vue";
+import {onUnmounted, ref, computed} from "vue";
 import {useRouter} from "vue-router";
 import {BookTag} from "../../model/bookTag.ts";
 import {getAllTag} from "../../apis/bookTag.ts";
@@ -172,6 +172,7 @@ import hotkeys from "hotkeys-js";
 import windowSizeListener from "../../service/windowSize.ts";
 import {formatDistanceToNow} from 'date-fns';
 import {zhCN} from 'date-fns/locale';
+import {bookGridConfig} from "../../common/responsiveConfig.ts";
 import {
     downloadBook as downloadBookApi,
     resumeBookDownload,
@@ -185,7 +186,14 @@ import {
 const bookList = ref(new Array<FavoriteBookInfo>());
 const page = ref(1);
 const pageSize = ref(12);
+const pagerCount = computed(() => bookGridConfig.value.pagerCount);
 const totalPage = ref(1);
+
+// 手机端隐藏翻页按钮，用滑动替代
+const paginationLayout = computed(() => {
+    return bookGridConfig.value.showPaginationArrows ? 'prev, pager, next, jumper' : 'pager';
+});
+
 const router = useRouter();
 const tagMap = new Map<number, BookTag>;
 const tags = ref<BookTag[]>([]);
