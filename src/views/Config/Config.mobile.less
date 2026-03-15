@@ -1,0 +1,58 @@
+// 设置页面手机端适配
+@media screen and (max-width: 800px) {
+  .config {
+    padding: 20px 15px;
+  }
+
+  .config-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 15px;
+  }
+
+  .config-item {
+    margin-bottom: 20px;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .config-title {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+    width: 100% !important;
+    text-align: left !important;
+    margin-right: 0 !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+    color: #CDCDCD;
+  }
+
+  .account, .cache-dir, .theme-list, .scale-config, .short-cut-key, .config-text {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .theme-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+
+    .theme-item {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+  }
+
+  .short-cut-key {
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  // 手机端隐藏项
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
