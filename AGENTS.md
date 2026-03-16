@@ -1,6 +1,8 @@
 
 ### 项目详情
 1. 这是一个 tauri 项目，拥有 web, pc, Android 端, 修改代码时注意多端适配
+2. 安卓目录在 src-tauri/gen 处于 .gitignore 中
+
 
 ### 编码规范
 1. 不要硬编码
