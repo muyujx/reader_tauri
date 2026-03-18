@@ -12,24 +12,31 @@ const __dirname = Path.dirname(__filename);
 // 获取当前时间作为构建时间
 const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-// https://vite.dev/config/
-export default defineConfig({
-  root: 'src',
-  base: './',
-  plugins: [
-    vue(),
-    AutoImport({
-      resolvers: [ElementPlusResolver()],
-    }),
-    Components({
-      resolvers: [ElementPlusResolver()],
-    }),
-  ],
+  // 生产构建时 NODE_ENV=production
+  const isProd = process.env.NODE_ENV === 'production';
 
-  define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
-    'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
-  },
+  // https://vite.dev/config/
+  export default defineConfig({
+    root: 'src',
+    base: '/',
+    envDir: Path.resolve(__dirname), // 指定环境变量文件目录为项目根目录
+    plugins: [
+      vue(),
+      AutoImport({
+        resolvers: [ElementPlusResolver()],
+      }),
+      Components({
+        resolvers: [ElementPlusResolver()],
+      }),
+    ],
+
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
+      'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
+      'import.meta.env.VITE_SERVER_HOST': JSON.stringify(process.env.VITE_SERVER_HOST || 'http://43.136.218.87'),
+      'import.meta.env.VITE_DEV_MODE': JSON.stringify(process.env.VITE_DEV_MODE || 'false'),
+      'import.meta.env.PROD': JSON.stringify(isProd),
+    },
 
   css: {
     preprocessorOptions: {
@@ -57,14 +64,14 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     host: '0.0.0.0',
-    hmr: {
-      protocol: 'http',
-      host: '10.0.2.2',
-      port: 5173,
-    },
-    // 配置代理，解决图片等静态资源请求
+    // 配置代理，解决图片等静态资源请求和API请求
     proxy: {
       '/resource': {
+        target: 'http://43.136.218.87',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      '/api/': {
         target: 'http://43.136.218.87',
         changeOrigin: true,
         rewrite: (path) => path,
