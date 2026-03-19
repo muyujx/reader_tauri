@@ -26,11 +26,17 @@ function copyDir(src, dest) {
     });
 }
 
-// 复制文件（如果源文件存在且目标文件不存在）
-function copyFile(src, dest) {
-    if (fs.existsSync(src) && !fs.existsSync(dest)) {
+// 复制文件（如果源文件存在）
+function copyFileIfExists(src, dest) {
+    if (fs.existsSync(src)) {
+        const destDir = path.dirname(dest);
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
         fs.copyFileSync(src, dest);
+        return true;
     }
+    return false;
 }
 
 function main() {
@@ -46,24 +52,32 @@ function main() {
         const mipmapDir = `${root}/gen/android/app/src/main/res/mipmap-${size}`;
         
         // 复制 ic_launcher.png
-        copyFile(
+        copyFileIfExists(
             `${root}/icons/${size}/ic_launcher.png`,
             `${mipmapDir}/ic_launcher.png`
         );
         
         // 复制 ic_launcher_round.png
-        copyFile(
+        copyFileIfExists(
             `${root}/icons/${size}/ic_launcher_round.png`,
             `${mipmapDir}/ic_launcher_round.png`
         );
         
         // 复制 ic_launcher_foreground.png
-        copyFile(
+        copyFileIfExists(
             `${root}/icons/${size}/ic_launcher_foreground.png`,
             `${mipmapDir}/ic_launcher_foreground.png`
         );
     });
     console.log(`  ✓ Copied icons to mipmap directories`);
+    
+    // 3. 复制用户自定义的 Android 配置文件
+    const configDir = `${root}/android-config`;
+    if (fs.existsSync(configDir)) {
+        console.log('Copying Android config files...');
+        copyDir(configDir, `${root}/gen/android`);
+        console.log(`  ✓ Copied Android config files`);
+    }
     
     console.log('\nAndroid resources ready!');
 }
