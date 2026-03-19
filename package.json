@@ -12,7 +12,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "npm run build && tauri build",
     "tauri:build:win": "npm run build && tauri build --target x86_64-pc-windows-msvc",
-    "tauri:build:android": "npm run build:android && tauri android build --apk",
+    "tauri:build:android": "npm run build:android && tauri android build --apk --target aarch64",
     "tauri:android:dev": "tauri android dev"
   },
   "dependencies": {
