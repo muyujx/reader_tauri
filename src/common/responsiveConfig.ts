@@ -6,7 +6,8 @@ const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 10
 
 // 断点配置
 const breakpoints = {
-    mobile: 768,
+    mobile: 414,
+    pad: 768,
     tablet: 1000,
     desktop: 1300,
 };
@@ -15,6 +16,13 @@ const breakpoints = {
 const bookGridConfig = computed(() => {
     const width = windowWidth.value;
     if (width <= breakpoints.mobile) {
+        return {
+            pageSize: 6,
+            pagerCount: 3,
+            columns: 3,
+            showPaginationArrows: false,
+        };
+    } else if (width <= breakpoints.pad) {
         return {
             pageSize: 9,
             pagerCount: 5,
@@ -49,6 +57,12 @@ const favoriteGridConfig = computed(() => {
     const width = windowWidth.value;
     if (width <= breakpoints.mobile) {
         return {
+            pageSize: 2,
+            pagerCount: 3,
+            showPaginationArrows: false,
+        };
+    } else if (width <= breakpoints.pad) {
+        return {
             pageSize: 3,
             pagerCount: 5,
             showPaginationArrows: false,
@@ -71,7 +85,10 @@ const favoriteGridConfig = computed(() => {
 const isMobile = computed(() => windowWidth.value <= breakpoints.mobile);
 
 // 是否为平板端
-const isTablet = computed(() => windowWidth.value > breakpoints.mobile && windowWidth.value <= breakpoints.tablet);
+const isPad = computed(() => windowWidth.value > breakpoints.mobile && windowWidth.value <= breakpoints.pad);
+
+// 是否为中等屏幕
+const isTablet = computed(() => windowWidth.value > breakpoints.pad && windowWidth.value <= breakpoints.tablet);
 
 // 是否为桌面端
 const isDesktop = computed(() => windowWidth.value > breakpoints.tablet);
@@ -97,6 +114,7 @@ export {
     bookGridConfig,
     favoriteGridConfig,
     isMobile,
+    isPad,
     isTablet,
     isDesktop,
     initResponsiveConfig,

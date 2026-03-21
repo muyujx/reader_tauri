@@ -1,22 +1,22 @@
-// 书籍网格配置 - 手机端
-@media screen and (max-width: 800px) {
+// 书籍网格配置 - 手机端适配
+@media screen and (max-width: 414px) {
   .shelf {
-    font-size: 14px;
-    --el-font-size-base: 13px;
-    padding: 10px;
-    padding-bottom: 10px;
+    font-size: 13px;
+    --el-font-size-base: 12px;
+    padding: 8px;
+    padding-bottom: 8px;
     box-sizing: border-box;
   }
 
   .search {
-    width: 90vw;
-    max-width: 320px;
-    height: 40px;
-    margin: 0 auto 10px;
+    width: 95vw;
+    max-width: 300px;
+    height: 36px;
+    margin: 0 auto 8px;
     flex-shrink: 0;
 
     .search-input {
-      height: 36px;
+      height: 32px;
     }
   }
 
@@ -27,50 +27,50 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: auto;
-    grid-gap: 10px;
+    grid-gap: 8px;
     place-items: center;
     justify-content: center;
     -webkit-overflow-scrolling: touch;
-    padding: 5px;
+    padding: 3px;
     box-sizing: border-box;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .book {
-    width: 100px;
-    height: 150px;
-    border-radius: 7px;
-    padding: 5px;
+    width: 90px;
+    height: 130px;
+    border-radius: 6px;
+    padding: 3px;
     box-sizing: border-box;
 
     .cover {
-      width: 85px;
-      height: 125px;
-      border-radius: 6px;
+      width: 75px;
+      height: 110px;
+      border-radius: 5px;
     }
 
     .name {
-      margin-top: 2px;
-      font-size: 12px;
+      margin-top: 1px;
+      font-size: 11px;
     }
   }
 
   .el-pagination {
     flex-shrink: 0;
     padding: 0;
-    margin-top: 5px;
-    margin-bottom: 10px;
+    margin-top: 3px;
+    margin-bottom: 8px;
     width: 100%;
     display: flex;
     justify-content: center;
 
     button, li {
-      min-width: 24px;
-      height: 24px;
-      margin: 0 2px;
-      border-radius: 4px;
-      font-size: 10px;
-      padding: 0 2px;
+      min-width: 22px;
+      height: 22px;
+      margin: 0 1px;
+      border-radius: 3px;
+      font-size: 9px;
+      padding: 0 1px;
     }
   }
 }

@@ -1,8 +1,8 @@
-// 收藏页面手机端适配 - 只保留容器和分页样式，卡片使用桌面端样式
-@media screen and (max-width: 414px) {
+// 收藏页面平板适配 - 只保留容器和分页样式，卡片使用桌面端样式
+@media screen and (max-width: 768px) {
   .favorite {
-    padding: 8px;
-    padding-bottom: 8px;
+    padding: 10px;
+    padding-bottom: 10px;
     box-sizing: border-box;
     height: 100%;
     display: flex;
@@ -14,8 +14,8 @@
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(0, 300px));
-    grid-row-gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(0, 400px));
+    grid-row-gap: 20px;
     place-items: center;
     justify-content: center;
     align-content: start;
@@ -36,29 +36,29 @@
   .el-pagination {
     flex-shrink: 0;
     padding: 0;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
     width: 100%;
     display: flex;
     justify-content: center;
 
     button, li {
-      min-width: 22px;
-      height: 22px;
-      margin: 0 1px;
-      border-radius: 3px;
-      font-size: 9px;
-      padding: 0 1px;
+      min-width: 24px;
+      height: 24px;
+      margin: 0 2px;
+      border-radius: 4px;
+      font-size: 10px;
+      padding: 0 2px;
     }
   }
 
   .empty-notify {
     .el-icon {
-      font-size: 40px;
+      font-size: 50px;
     }
     
     p {
-      font-size: 11px;
+      font-size: 12px;
     }
   }
 }

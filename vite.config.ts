@@ -64,6 +64,11 @@ const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
     port: 5173,
     strictPort: false,
     host: '0.0.0.0',
+    // 配置 HMR，支持 Android Emulator 远程访问
+    hmr: {
+      host: '192.168.1.207',
+      port: 5173,
+    },
     // 配置代理，解决图片等静态资源请求和API请求
     proxy: {
       '/resource': {

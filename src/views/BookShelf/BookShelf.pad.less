@@ -1,0 +1,76 @@
+// 书籍网格配置 - 平板适配
+@media screen and (max-width: 768px) {
+  .shelf {
+    font-size: 14px;
+    --el-font-size-base: 13px;
+    padding: 10px;
+    padding-bottom: 10px;
+    box-sizing: border-box;
+  }
+
+  .search {
+    width: 90vw;
+    max-width: 320px;
+    height: 40px;
+    margin: 0 auto 10px;
+    flex-shrink: 0;
+
+    .search-input {
+      height: 36px;
+    }
+  }
+
+  .books {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto;
+    grid-gap: 12px;
+    place-items: center;
+    justify-content: center;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+  }
+
+  .book {
+    width: 115px;
+    height: 170px;
+    border-radius: 8px;
+    padding: 5px;
+    box-sizing: border-box;
+
+    .cover {
+      width: 100px;
+      height: 145px;
+      border-radius: 7px;
+    }
+
+    .name {
+      margin-top: 3px;
+      font-size: 12px;
+    }
+  }
+
+  .el-pagination {
+    flex-shrink: 0;
+    padding: 0;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+
+    button, li {
+      min-width: 24px;
+      height: 24px;
+      margin: 0 2px;
+      border-radius: 4px;
+      font-size: 10px;
+      padding: 0 2px;
+    }
+  }
+}
