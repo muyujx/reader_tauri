@@ -63,15 +63,9 @@ const favoriteGridConfig = computed(() => {
         };
     } else if (width <= breakpoints.pad) {
         return {
-            pageSize: 5,
+            pageSize: 4,
             pagerCount: 5,
             showPaginationArrows: false,
-        };
-    } else if (width <= breakpoints.tablet) {
-        return {
-            pageSize: 8,
-            pagerCount: 6,
-            showPaginationArrows: true,
         };
     }
     return {
