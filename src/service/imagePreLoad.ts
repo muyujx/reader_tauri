@@ -24,10 +24,16 @@ export function preloadImageByHtml(html: string): string {
     const images = div.querySelectorAll("img");
     // @ts-ignore
     for (let image of images) {
-        // 直接修改 src 为完整 URL
-        image.src = addHost(image.src);
-        // 预加载图片
-        preloadBySrc(image.currentSrc);
+        // 获取原始的 src 属性值（可能是相对路径或绝对路径）
+        const originalSrc = image.getAttribute('src');
+        if (originalSrc) {
+            // 使用 addHost 处理图片 URL
+            const processedSrc = addHost(originalSrc);
+            // 设置处理后的 URL
+            image.src = processedSrc;
+            // 使用处理后的 URL 进行预加载
+            preloadBySrc(processedSrc);
+        }
     }
 
     return div.innerHTML;
@@ -42,5 +48,26 @@ export function preloadBySrc(src: string) {
     if (src == null || src.length == 0) {
         return;
     }
-    new Image().src = src;
+    
+    const img = new Image();
+    
+    // 添加错误处理
+    img.onerror = () => {
+        console.warn(`图片预加载失败: ${src}`);
+        // 可以在这里添加重试逻辑或占位图处理
+    };
+    
+    // 添加超时处理
+    const timeout = 10000; // 10秒超时
+    const timeoutId = setTimeout(() => {
+        console.warn(`图片预加载超时: ${src}`);
+        img.src = ''; // 停止加载
+    }, timeout);
+    
+    img.onload = () => {
+        clearTimeout(timeoutId);
+        console.log(`图片预加载成功: ${src}`);
+    };
+    
+    img.src = src;
 }

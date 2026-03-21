@@ -229,7 +229,13 @@ function imageSelect(e: any) {
   for (let img of imageList) {
     let src = img.attributes.getNamedItem("src");
     if (src instanceof Attr && src.value != null) {
-      srcList.push(src.value);
+      // 确保 URL 是完整的
+      let imageUrl = src.value;
+      if (!imageUrl.includes("://")) {
+        // 如果不是完整 URL，使用 addHost 处理
+        imageUrl = addHost(imageUrl);
+      }
+      srcList.push(imageUrl);
     }
   }
 
@@ -262,7 +268,13 @@ function imageViewerClose() {
 function rawPageClick(event: any) {
   const target = event.target;
   if (target.src != undefined) {
-    previewList.value = [target.src];
+    let imageUrl = target.src;
+    // 确保 URL 是完整的
+    if (!imageUrl.includes("://")) {
+      // 如果不是完整 URL，使用 addHost 处理
+      imageUrl = addHost(imageUrl);
+    }
+    previewList.value = [imageUrl];
     imageViewer.value = true;
   }
 }
