@@ -1,4 +1,5 @@
 // src-tauri/src/main.rs
+#![windows_subsystem = "windows"]
 
 fn main() {
     // 获取命令行参数

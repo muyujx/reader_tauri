@@ -55,24 +55,39 @@ function copyAndroidRelease() {
     });
 }
 
-// 复制桌面安装包
+// 复制桌面可执行文件
 function copyDesktopRelease() {
-    console.log('\nCopying Desktop installer...');
+    console.log('\nCopying Desktop executable...');
     
-    const bundleDir = path.join(rootDir, 'src-tauri', 'target', 'release', 'bundle');
     const releaseDir = path.join(rootDir, 'release', 'desktop');
     
-    const extensions = ['.msi', '.exe', '.deb', '.rpm', '.appimage', '.dmg'];
-    const installers = findFiles(bundleDir, extensions);
+    // 可能的构建输出目录
+    const possibleDirs = [
+        path.join(rootDir, 'src-tauri', 'target', 'release'),
+        path.join(rootDir, 'src-tauri', 'target', 'x86_64-pc-windows-msvc', 'release'),
+        path.join(rootDir, 'src-tauri', 'target', 'aarch64-apple-darwin', 'release'),
+        path.join(rootDir, 'src-tauri', 'target', 'x86_64-unknown-linux-gnu', 'release'),
+    ];
     
-    if (installers.length === 0) {
-        console.log('  ⚠ No installer found');
-        return;
+    // Windows: 查找 .exe 文件
+    for (const dir of possibleDirs) {
+        const exeFile = path.join(dir, 'reader.exe');
+        if (fs.existsSync(exeFile)) {
+            copyFile(exeFile, path.join(releaseDir, 'Reader.exe'));
+            return;
+        }
     }
     
-    installers.forEach(installer => {
-        copyFile(installer, path.join(releaseDir, path.basename(installer)));
-    });
+    // Linux/macOS: 查找可执行文件
+    for (const dir of possibleDirs) {
+        const unixExe = path.join(dir, 'reader');
+        if (fs.existsSync(unixExe)) {
+            copyFile(unixExe, path.join(releaseDir, 'Reader'));
+            return;
+        }
+    }
+    
+    console.log('  ⚠ No executable found');
 }
 
 // 主函数
