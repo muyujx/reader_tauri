@@ -52,26 +52,65 @@ const bookGridConfig = computed(() => {
     };
 });
 
-// 收藏页网格配置 - 手机端每页3个
-const favoriteGridConfig = computed(() => {
-    const width = windowWidth.value;
-    if (width <= breakpoints.mobile) {
-        return {
-            pageSize: 2,
-            pagerCount: 3,
-            showPaginationArrows: false,
-        };
-    } else if (width <= breakpoints.pad) {
-        return {
-            pageSize: 4,
-            pagerCount: 5,
-            showPaginationArrows: false,
-        };
-    }
-    return {
+// 收藏页卡片尺寸配置
+const favoriteCardConfig = {
+    mobile: {
+        cardHeight: 140,
+        gap: 12,
+        paginationHeight: 40,
+        padding: 16,
+        pagerCount: 3,
+        minPageSize: 1,
+        maxPageSize: 6,
+    },
+    pad: {
+        cardHeight: 190,
+        gap: 20,
+        paginationHeight: 40,
+        padding: 20,
+        pagerCount: 5,
+        minPageSize: 1,
+        maxPageSize: 6,
+    },
+    desktop: {
         pageSize: 9,
         pagerCount: 7,
         showPaginationArrows: true,
+    },
+};
+
+// 收藏页网格配置 - 返回配置信息，由组件根据实际容器高度计算 pageSize
+const favoriteGridConfig = computed(() => {
+    const width = windowWidth.value;
+    
+    if (width <= breakpoints.mobile) {
+        const config = favoriteCardConfig.mobile;
+        return {
+            cardHeight: config.cardHeight,
+            gap: config.gap,
+            minPageSize: config.minPageSize,
+            maxPageSize: config.maxPageSize,
+            pagerCount: config.pagerCount,
+            showPaginationArrows: false,
+            // 预设计算的 pageSize 作为后备
+            pageSize: config.minPageSize,
+        };
+    } else if (width <= breakpoints.pad) {
+        const config = favoriteCardConfig.pad;
+        return {
+            cardHeight: config.cardHeight,
+            gap: config.gap,
+            minPageSize: config.minPageSize,
+            maxPageSize: config.maxPageSize,
+            pagerCount: config.pagerCount,
+            showPaginationArrows: false,
+            pageSize: config.minPageSize,
+        };
+    }
+    return {
+        pageSize: favoriteCardConfig.desktop.pageSize,
+        pagerCount: favoriteCardConfig.desktop.pagerCount,
+        showPaginationArrows: favoriteCardConfig.desktop.showPaginationArrows,
     };
 });
 

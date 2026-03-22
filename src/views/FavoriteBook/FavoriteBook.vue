@@ -14,7 +14,7 @@
         </div>
 
 
-        <div class="books">
+        <div class="books" ref="booksContainer">
 
 
             <div class="book"
@@ -162,7 +162,7 @@
 
 <script setup lang="ts">
 import {addHost} from "../../apis/request.ts";
-import {onMounted, onUnmounted, ref, computed} from "vue";
+import {onMounted, onUnmounted, ref, computed, nextTick} from "vue";
 import {useRouter} from "vue-router";
 import {BookTag} from "../../model/bookTag.ts";
 import {getAllTag} from "../../apis/bookTag.ts";
@@ -191,10 +191,36 @@ const page = ref(1);
 const pageSize = ref(12);
 const pagerCount = computed(() => favoriteGridConfig.value.pagerCount);
 const totalPage = ref(1);
+const booksContainer = ref<HTMLElement | null>(null);
 
-// 获取每页数量
+// 获取每页数量（基于实际容器高度）
 function getPageSize(): number {
-    return favoriteGridConfig.value.pageSize;
+    const container = booksContainer.value;
+    const config = favoriteGridConfig.value;
+    
+    // 如果没有 cardHeight 配置（桌面端），直接返回配置的 pageSize
+    if (!config.cardHeight || config.gap === undefined) {
+        return config.pageSize || 9;
+    }
+    
+    // 如果容器还没有准备好，返回当前的 pageSize（不改变）
+    if (!container) {
+        return pageSize.value;
+    }
+    
+    const containerHeight = container.offsetHeight;
+    
+    // 如果容器高度为 0 或太小，返回当前的 pageSize（不改变）
+    if (containerHeight <= 0) {
+        return pageSize.value;
+    }
+    
+    const cardTotalHeight = config.cardHeight + config.gap;
+    // 减去 2px 安全边距，确保不会出现滚动
+    const calculated = Math.floor((containerHeight - 2) / cardTotalHeight);
+    const result = Math.max(config.minPageSize || 1, Math.min(calculated, config.maxPageSize || 6));
+    
+    return result;
 }
 
 // 手机端隐藏翻页按钮，用滑动替代
@@ -230,6 +256,13 @@ const onWindowSizeChange = () => {
 windowSizeListener.on(onWindowSizeChange);
 onMounted(() => {
     initResponsiveConfig();
+    // 使用 nextTick 确保 DOM 渲染完成后再计算 pageSize
+    nextTick(() => {
+        const curPageSize = getPageSize();
+        if (pageSize.value !== curPageSize) {
+            pageSize.value = curPageSize;
+        }
+    });
 });
 onUnmounted(() => {
     console.log("----- FavoriteBook Unmounted ---");

@@ -1,4 +1,4 @@
-// 收藏页面手机端适配 - 只保留容器和分页样式，卡片使用桌面端样式
+// 收藏页面手机端适配 - 缩小卡片尺寸
 @media screen and (max-width: 414px) {
   .favorite {
     padding: 8px;
@@ -14,8 +14,8 @@
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(0, 300px));
-    grid-row-gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(0, 280px));
+    grid-row-gap: 12px;
     place-items: center;
     justify-content: center;
     align-content: start;
@@ -31,6 +31,78 @@
     }
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+
+  // 缩小卡片尺寸
+  .book {
+    width: 270px;
+    height: 140px;
+
+    .cover {
+      width: 80px;
+      height: 115px;
+    }
+
+    .detail {
+      width: 180px;
+
+      .detail-content {
+        width: 150px;
+        padding: 6px 0;
+
+        .name {
+          width: 140px;
+          min-height: 30px;
+          margin-bottom: 4px;
+          font-size: 13px;
+        }
+
+        .item {
+          font-size: 10px;
+
+          p:first-child {
+            width: 50px;
+          }
+
+          .detail_item_content {
+            p {
+              width: 90px;
+            }
+
+            .el-progress {
+              margin-top: 2px;
+              margin-bottom: 2px;
+            }
+          }
+        }
+
+        .item + .item {
+          margin-top: 4px;
+        }
+      }
+
+      .action-buttons {
+        gap: 6px;
+        padding: 6px 3px 6px 0;
+      }
+
+      .cancel-favorite,
+      .download-book,
+      .download-progress,
+      .download-complete {
+        width: 24px;
+        height: 24px;
+      }
+
+      .cancel-favorite .el-icon,
+      .download-book .el-icon {
+        font-size: 16px;
+      }
+
+      .download-progress .progress-text {
+        font-size: 9px;
+      }
+    }
   }
 
   .el-pagination {
