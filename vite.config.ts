@@ -9,8 +9,17 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
-// 获取当前时间作为构建时间
-const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+// 获取当前时间作为构建时间（本地时间，东八区）
+const buildTime = new Date().toLocaleString('zh-CN', { 
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+}).replace(/\//g, '-');
 
   // 生产构建时 NODE_ENV=production
   const isProd = process.env.NODE_ENV === 'production';

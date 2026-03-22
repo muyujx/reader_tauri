@@ -9,7 +9,7 @@
     "build:android": "tsc && vite build && node scripts/build-android.cjs",
     "preview": "vite preview",
     "tauri": "tauri dev",
-    "tauri:dev": "tauri dev",
+    "tauri:win:dev": "tauri dev",
     "tauri:build": "npm run build && tauri build",
     "tauri:build:win": "npm run build && tauri build --target x86_64-pc-windows-msvc && node scripts/copy-release.cjs desktop",
     "tauri:build:android": "npm run build:android && tauri android build --apk --target aarch64 && node scripts/copy-release.cjs android",

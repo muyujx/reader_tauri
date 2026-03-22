@@ -34,7 +34,8 @@
     margin-left: 0 !important;
   }
 
-  .theme-list {
+  // 配置页面的主题列表
+  > .config > .config-content > .config-item > .theme-list {
     display: grid !important;
     flex-wrap: wrap;
     gap: 10px;
@@ -64,6 +65,7 @@
   .theme-dialog-box {
     width: calc(100vw - 24px) !important;
     max-height: 70vh;
+    overflow-y: auto !important;
     padding: 12px !important;
     background-color: var(--background) !important;
     box-sizing: border-box !important;
@@ -75,20 +77,20 @@
   .theme-dialog-content {
     background-color: var(--background) !important;
     width: 100% !important;
-  }
 
-  .theme-list {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 8px;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    
-    .theme-item {
-      height: 40px;
-      min-height: 40px;
+    .theme-list {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 10px;
       width: 100% !important;
       box-sizing: border-box !important;
+      
+      .theme-item {
+        height: 44px;
+        min-height: 44px;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
     }
   }
 }

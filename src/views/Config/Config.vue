@@ -79,7 +79,7 @@
 
             <div class="config-item scale-config">
                 <div class="config-title">
-                    书页放大: <span class="scale-value">{{ scale.current }}</span>
+                    书页放大:
                 </div>
 
                 <el-slider
@@ -87,8 +87,10 @@
                     v-model="scale.current"
                     @change="scaleChange"
                     :show-tooltip="false"
-                    :min="0"
+                    :min="-10"
                     :max="50"/>
+
+                <span class="scale-value">{{ scale.current }}</span>
             </div>
 
             <div class="config-item hide-on-mobile">

@@ -69,7 +69,7 @@ const favoriteGridConfig = computed(() => {
         };
     }
     return {
-        pageSize: 12,
+        pageSize: 9,
         pagerCount: 7,
         showPaginationArrows: true,
     };
