@@ -362,12 +362,13 @@ const touchControl = new TouchControl();
 touchControl.onSwipeLeft(next);
 touchControl.onSwipeRight(pre);
 
-function getBookList() {
+function getBookList(showLoading = true) {
 
     console.log("----------- getBookList --------");
 
-
-    loading.show();
+    if (showLoading) {
+        loading.show();
+    }
 
     getBookInfoList(page.value, pageSize.value, searchStr.value, tag.value)
         .then((bookInfoList: BookShelfList) => {
@@ -375,7 +376,9 @@ function getBookList() {
             booKList.value = bookInfoList.content;
         })
         .finally(() => {
-            loading.hide();
+            if (showLoading) {
+                loading.hide();
+            }
         });
 }
 
@@ -422,7 +425,7 @@ function enter() {
     hotkeys('right, down, d, f', 'book-shelf', next);
     hotkeys.setScope('book-shelf');
 
-    getBookList();
+    getBookList(false);
     // 获取书籍标签
     getAllTag().then(res => {
         for (let tag of res) {

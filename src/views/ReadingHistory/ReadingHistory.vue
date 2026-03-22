@@ -146,7 +146,7 @@ const showBookList = ref(false);
 // 某一天的阅读书籍列表
 const bookHistoryList = ref(new Array<BookHistory>());
 
-getReadHistory(calendarDate.value);
+getReadHistory(calendarDate.value, false);
 watch(calendarDate, (newVal, oldVal) => {
   if (newVal.getMonth() == oldVal.getMonth()) {
     return;
@@ -160,11 +160,13 @@ watch(calendarDate, (newVal, oldVal) => {
  *
  * @param date 当月日期
  */
-function getReadHistory(date: Date) {
+function getReadHistory(date: Date, showLoading = true) {
 
   console.log(`------ getReadHistory ${date} ------`);
 
-  loading.show();
+  if (showLoading) {
+    loading.show();
+  }
   const firstDay = format(startOfMonth(date), dateFormat);
   const lastDay = format(endOfMonth(date), dateFormat);
   // 获取本月历史阅读记录
@@ -201,7 +203,9 @@ function getReadHistory(date: Date) {
         popErr("获取阅读历史记录失败!");
       })
       .finally(() => {
-        loading.hide();
+        if (showLoading) {
+          loading.hide();
+        }
       });
 }
 

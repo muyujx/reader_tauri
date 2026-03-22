@@ -152,8 +152,10 @@ onUnmounted(() => {
     windowSizeListener.delete(onWindowSizeChange);
 })
 
-function getBookList() {
-    loading.show();
+function getBookList(showLoading = true) {
+    if (showLoading) {
+        loading.show();
+    }
     getDownloadedBookListByPage(page.value, pageSize.value)
         .then((result) => {
             bookList.value = result.content;
@@ -161,7 +163,9 @@ function getBookList() {
             empty.value = result.total === 0;
         })
         .finally(() => {
-            loading.hide();
+            if (showLoading) {
+                loading.hide();
+            }
         });
 }
 
@@ -240,7 +244,7 @@ function enter() {
     hotkeys('left, a, s, page up', 'download', () => jumpToPage(page.value - 1));
     hotkeys('right, f, d, page down', 'download', () => jumpToPage(page.value + 1));
     hotkeys.setScope('download');
-    getBookList();
+    getBookList(false);
 }
 
 function leave() {

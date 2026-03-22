@@ -236,9 +236,11 @@ onUnmounted(() => {
     windowSizeListener.delete(onWindowSizeChange);
 })
 
-function getBookList() {
+function getBookList(showLoading = true) {
 
-    loading.show();
+    if (showLoading) {
+        loading.show();
+    }
 
     getFavoriteBookListAPi(page.value, pageSize.value)
         .then(async (bookInfoList: FavoriteBookList) => {
@@ -274,7 +276,9 @@ function getBookList() {
             }
         })
         .finally(() => {
-            loading.hide();
+            if (showLoading) {
+                loading.hide();
+            }
         });
 }
 
@@ -446,7 +450,7 @@ function enter() {
         tags.value = res;
     });
 
-    getBookList();
+    getBookList(false);
 }
 
 function leave() {
