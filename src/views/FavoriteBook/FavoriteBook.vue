@@ -183,6 +183,7 @@ import {
     cancelBookDownload,
     getDownloadProgress,
     onDownloadProgress,
+    onDownloadSessionExpired,
     BookInfo
 } from "../../apis/bookDownload.ts";
 
@@ -338,7 +339,7 @@ async function handleDownloadClick(book: FavoriteBookInfo) {
 }
 
 async function downloadBook(book: FavoriteBookInfo) {
-    console.log(book);
+    console.log('[Download] downloadBook called:', book.bookId, book.bookName);
     if (downloadStatus.value[book.bookId]?.downloading && !downloadStatus.value[book.bookId]?.paused) {
         return;
     }
@@ -370,19 +371,8 @@ async function downloadBook(book: FavoriteBookInfo) {
         } else {
             await downloadBookApi(bookInfo);
         }
-        popSuccess('下载完成');
-        const progressInfo = await getDownloadProgress(book.bookId);
-        const isFullyDownloaded = progressInfo.exists && progressInfo.downloadedPages >= progressInfo.totalPage;
-        const progress = progressInfo.exists && progressInfo.totalPage > 0 
-            ? Math.floor((progressInfo.downloadedPages / progressInfo.totalPage) * 100) 
-            : 100;
-        downloadStatus.value[book.bookId] = {
-            downloading: false,
-            downloaded: isFullyDownloaded,
-            progress: progress,
-            hasPartialDownload: false,
-            paused: false
-        };
+        // 下载已启动，进度通过 onDownloadProgress 回调更新
+        popSuccess('下载已开始');
     } catch (error) {
         const prevProgress = downloadStatus.value[book.bookId]?.progress || 0;
         downloadStatus.value[book.bookId] = {
@@ -392,14 +382,46 @@ async function downloadBook(book: FavoriteBookInfo) {
             hasPartialDownload: hasPartial || false,
             paused: false
         };
-        popErr('下载失败');
+        // 后端 reject 回来的是具体错误字符串，原样弹出便于定位
+        popErr('下载失败: ' + (typeof error === 'string' ? error : JSON.stringify(error)));
     }
 }
 
 onDownloadProgress((progress) => {
+    console.log('[Download] onDownloadProgress callback:', progress);
     if (downloadStatus.value[progress.bookId]) {
-        downloadStatus.value[progress.bookId].progress = progress.progress;
+        const percentage = progress.totalPage > 0
+            ? Math.floor((progress.downloadedPages / progress.totalPage) * 100)
+            : 0;
+        downloadStatus.value[progress.bookId].progress = percentage;
+
+        // 下载完成
+        if (progress.downloadedPages >= progress.totalPage) {
+            downloadStatus.value[progress.bookId] = {
+                downloading: false,
+                downloaded: true,
+                progress: 100,
+                hasPartialDownload: false,
+                paused: false
+            };
+            popSuccess('下载完成');
+        }
     }
+});
+
+// 后端检测到 cookie 失效（HTTP 401/403 或业务 code=100）时通知前端重登
+onDownloadSessionExpired((payload) => {
+    console.warn('[Download] session expired:', payload);
+    const prevProgress = downloadStatus.value[payload.bookId]?.progress || 0;
+    downloadStatus.value[payload.bookId] = {
+        downloading: false,
+        downloaded: false,
+        progress: prevProgress,
+        hasPartialDownload: true,
+        paused: false
+    };
+    popErr('登录已失效，请重新登录后再下载');
+    router.push({ name: 'Login' });
 });
 
 

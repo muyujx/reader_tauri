@@ -45,6 +45,7 @@ const buildTime = new Date().toLocaleString('zh-CN', {
       'import.meta.env.VITE_SERVER_HOST': JSON.stringify(process.env.VITE_SERVER_HOST || 'http://43.136.218.87'),
       'import.meta.env.VITE_DEV_MODE': JSON.stringify(process.env.VITE_DEV_MODE || 'false'),
       'import.meta.env.PROD': JSON.stringify(isProd),
+      'import.meta.env.VITE_DEBUG_OFFLINE': JSON.stringify(process.env.VITE_DEBUG_OFFLINE || 'false'),
     },
 
   css: {

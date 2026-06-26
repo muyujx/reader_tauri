@@ -161,44 +161,6 @@ pub fn init_db(app: &AppHandle) -> Result<Connection, String> {
     Ok(conn)
 }
 
-// 命令实现
-#[tauri::command]
-pub fn book_download(
-    db: State<DbState>,
-    bookId: i64,
-    bookName: String,
-    totalPage: i64,
-    coverPic: String,
-    bigCoverPic: String,
-    tagId: i64,
-) -> Result<DownloadResult, String> {
-    let guard = db.0.lock().map_err(|e| e.to_string())?;
-    let conn = guard.as_ref().ok_or("Database not initialized")?;
-
-    let now = chrono::Utc::now().timestamp();
-
-    conn.execute(
-        "INSERT OR REPLACE INTO book (book_id, book_name, total_page, cover_pic, big_cover_pic, tag_id, create_time)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![bookId, bookName, totalPage, coverPic, bigCoverPic, tagId, now],
-    ).map_err(|e| e.to_string())?;
-
-    for i in 1..=totalPage {
-        conn.execute(
-            "INSERT OR IGNORE INTO book_page (book_id, page_idx, status, create_time)
-             VALUES (?1, ?2, 0, ?3)",
-            params![bookId, i, now],
-        )
-        .map_err(|e| e.to_string())?;
-    }
-
-    info!("[DB] Book downloaded: bookId={}", bookId);
-    Ok(DownloadResult {
-        success: true,
-        book_id: bookId,
-    })
-}
-
 #[tauri::command]
 pub fn book_get_download_progress(
     db: State<DbState>,
@@ -256,7 +218,7 @@ pub fn book_get_page(
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
     let result = conn.query_row(
-        "SELECT content, title, page_idx, top_chapter FROM book_page WHERE book_id = ?1 AND page_idx = ?2",
+        "SELECT content, title, page_idx, top_chapter FROM book_page WHERE book_id = ?1 AND page_idx = ?2 AND status = 1",
         params![bookId, page],
         |row| {
             let content: Option<String> = row.get(0)?;

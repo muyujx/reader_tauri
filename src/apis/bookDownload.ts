@@ -1,5 +1,7 @@
 import {ipcInvoke, ipcOn} from "../utils/ipcUtil.ts";
 import ipcChannel from "../common/ipcChannel.ts";
+import {CURRENT_HOST} from "../hostConfig.ts";
+import log from "../utils/log";
 
 export interface BookInfo {
     bookId: number;
@@ -23,7 +25,14 @@ export interface DownloadProgress {
     totalPage: number;
 }
 
+export interface DownloadProgressEvent {
+    bookId: number;
+    downloadedPages: number;
+    totalPage: number;
+}
+
 export function downloadBook(bookInfo: BookInfo): Promise<{ success: boolean, bookId: number }> {
+    log.info('[Download] book_download:', bookInfo);
     return ipcInvoke(ipcChannel.bookDownload, {
         bookId: bookInfo.bookId,
         bookName: bookInfo.bookName,
@@ -31,6 +40,7 @@ export function downloadBook(bookInfo: BookInfo): Promise<{ success: boolean, bo
         coverPic: bookInfo.coverPic,
         bigCoverPic: bookInfo.bigCoverPic,
         tagId: bookInfo.tagId,
+        serverHost: CURRENT_HOST,
     });
 }
 
@@ -78,8 +88,22 @@ export function getLocalImage(bookId: number, imageUrl: string): Promise<{ data:
     return ipcInvoke(ipcChannel.bookGetLocalImage, { bookId, imageUrl });
 }
 
-export function onDownloadProgress(callback: (progress: DownloadProgress) => void): void {
+export function onDownloadProgress(callback: (progress: DownloadProgressEvent) => void): void {
     ipcOn(ipcChannel.bookDownloadProgress, (...args: any[]) => {
+        callback(args[0]);
+    });
+}
+
+/**
+ * 监听后端"会话失效"事件：下载过程中若后端检测到 HTTP 401/403
+ * 或业务 code=100，会 emit 本事件，前端可据此跳转登录页重新登录。
+ *
+ * payload: { bookId: number, status?: number, apiCode?: number }
+ */
+export function onDownloadSessionExpired(
+    callback: (payload: { bookId: number; status?: number; apiCode?: number }) => void
+): void {
+    ipcOn(ipcChannel.bookDownloadSessionExpired, (...args: any[]) => {
         callback(args[0]);
     });
 }

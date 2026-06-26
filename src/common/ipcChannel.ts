@@ -12,13 +12,15 @@ export default {
     setStore: 'setStore',
     getStore: 'getStore',
 
-    // 网络请求
-    rqGet: 'rqGet',
-    rqPost: 'rqPost',
+    // 网络请求（统一走 Rust 后端 rq_post / rq_get）
+    rqGet: 'rq_get',
+    rqPost: 'rq_post',
 
     // 书籍下载
     bookDownload: 'book_download',
     bookDownloadProgress: 'book_download_progress',
+    // 下载过程中检测到会话失效（cookie 过期）时由后端 emit
+    bookDownloadSessionExpired: 'book_download_session_expired',
     bookGetDownloadProgress: 'book_get_download_progress',
     bookResumeDownload: 'book_resume_download',
     bookPauseDownload: 'book_pause_download',

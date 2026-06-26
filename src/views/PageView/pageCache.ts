@@ -204,24 +204,14 @@ export class PageCache {
         let pages: PageItem[];
         
         if (this.useLocal) {
-            // 本地模式：优先从本地读取，本地没有的页面从网络获取
-            const remotePages = await getBookPageList(this.bookId, startPage, pageSize);
-            const remotePageMap = new Map<number, PageItem>();
-            for (const page of remotePages) {
-                remotePageMap.set(page.page, page);
-            }
-            
+            // 本地模式：只从本地读取，不请求网络
             pages = [];
             for (let i = 0; i < pageSize; i++) {
                 const pageNum = startPage + i;
                 if (pageNum > this.totalPage) break;
-                // 优先从本地获取
                 const localPage = await getLocalPage(this.bookId, pageNum);
                 if (localPage) {
                     pages.push(localPage);
-                } else if (remotePageMap.has(pageNum)) {
-                    // 本地没有则使用网络数据
-                    pages.push(remotePageMap.get(pageNum)!);
                 }
             }
         } else {

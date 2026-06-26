@@ -1,7 +1,13 @@
 import {DEV_MOD, CURRENT_HOST} from "../hostConfig"
 import router from "../route";
-import { fetch } from '@tauri-apps/plugin-http';
+import { ipcInvoke } from "../utils/ipcUtil.ts";
 
+export class OfflineError extends Error {
+    constructor() {
+        super('offline');
+        this.name = 'OfflineError';
+    }
+}
 
 export interface ResponseModel<T> {
     data: T,
@@ -41,29 +47,57 @@ function parseUrl(path: string): string {
 
 export default {
 
-    post<T>(rqParam: RequestParam): Promise<T> {
+    /**
+     * POST 请求：统一走 Rust 后端 rq_post 命令。
+     *
+     * 所有请求复用后端全局带 cookie 的 reqwest Client，
+     * 登录态由后端 Jar 维护并持久化到磁盘，前端无需关心 cookie。
+     */
+    async post<T>(rqParam: RequestParam): Promise<T> {
+        if (import.meta.env.VITE_DEBUG_OFFLINE === 'true') {
+            return Promise.reject(new OfflineError());
+        }
+
         const url = parseUrl(rqParam.url);
-        
-        return fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const res = await ipcInvoke('rq_post', {
+            url,
             body: rqParam.body ? JSON.stringify(rqParam.body) : undefined,
-        }).then((res: any) => res.json())
-          .then((result: ResponseModel<T>) => afterRq(result));
+        }) as { status: number, body: string };
+
+        if (res.status < 200 || res.status >= 300) {
+            return Promise.reject(`HTTP ${res.status}`);
+        }
+
+        const result = JSON.parse(res.body) as ResponseModel<T>;
+        return afterRq(result);
     },
 
-    get<T>(rqParam: RequestParam): Promise<T> {
+    /**
+     * GET 请求：统一走 Rust 后端 rq_get 命令。
+     */
+    async get<T>(rqParam: RequestParam): Promise<T> {
+        if (import.meta.env.VITE_DEBUG_OFFLINE === 'true') {
+            return Promise.reject(new OfflineError());
+        }
+
         const url = parseUrl(rqParam.url);
-        const queryString = rqParam.queryParam 
-            ? '?' + new URLSearchParams(rqParam.queryParam).toString() 
+        const queryString = rqParam.queryParam
+            ? '?' + new URLSearchParams(rqParam.queryParam).toString()
             : '';
-            
-        return fetch(url + queryString, {
-            method: 'GET',
-        }).then((res: any) => res.json())
-          .then((result: ResponseModel<T>) => afterRq(result));
+
+        const res = await ipcInvoke('rq_get', {
+            url: url + queryString,
+        }) as { status: number, body: string };
+
+        if (res.status < 200 || res.status >= 300) {
+            return Promise.reject(`HTTP ${res.status}`);
+        }
+
+        const result = JSON.parse(res.body) as ResponseModel<T>;
+        return afterRq(result);
+    },
+
     }
-}
 
 export function addHost(path: string): string {
     if (path.includes("://")) {

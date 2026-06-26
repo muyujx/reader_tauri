@@ -8,13 +8,6 @@
     "opener:default",
     "dialog:default",
     "fs:default",
-    "store:default",
-    {
-      "identifier": "http:default",
-      "allow": [
-        { "url": "http://**" },
-        { "url": "https://**" }
-      ]
-    }
+    "store:default"
   ]
 }

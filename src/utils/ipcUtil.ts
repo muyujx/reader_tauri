@@ -2,32 +2,40 @@
  * Tauri IPC 工具
  */
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import log from "./log";
 
 /**
  * 向 Tauri 后端发送命令（无返回值）
  */
 export function ipcSend(channel: string): void {
-    console.log('[ipcSend]', channel);
-    invoke(channel).catch(err => console.error('[ipcSend error]', err));
+    log.info('[ipcSend]', channel);
+    invoke(channel).catch(err => log.error('[ipcSend error]', channel, err));
 }
 
 /**
  * 监听 Tauri 后端的事件
  */
 export function ipcOn(channel: string, listener: (...args: any[]) => void): void {
-    // Tauri v2 使用事件监听
-    // @ts-ignore
-    const unlisten = window.__TAURI__.event.listen(channel, (event) => {
+    log.debug('[ipcOn] registering listener for:', channel);
+    listen(channel, (event) => {
+        log.debug('[ipcOn] event:', channel, event.payload);
         listener(event.payload);
+    }).then(() => {
+        log.debug('[ipcOn] listener registered for:', channel);
+    }).catch(err => {
+        log.error('[ipcOn] register failed:', channel, err);
     });
-    
-    // 返回取消监听函数
-    return unlisten;
 }
 
 /**
  * 调用 Tauri 后端的方法并获取返回值
  */
 export function ipcInvoke(channel: string, ...args: any[]): Promise<any> {
-    return invoke(channel, args[0] || {});
+    // dev 下打印每一次 IPC 调用，便于在浏览器 console 定位"点了下载没反应"类问题
+    log.info('[ipcInvoke]', channel, args[0] ?? {});
+    return invoke(channel, args[0] || {}).catch(err => {
+        log.error('[ipcInvoke error]', channel, err);
+        return Promise.reject(err);
+    });
 }
