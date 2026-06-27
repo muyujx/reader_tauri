@@ -45,8 +45,8 @@ const buildTime = new Date().toLocaleString('zh-CN', {
       'import.meta.env.VITE_SERVER_HOST': JSON.stringify(process.env.VITE_SERVER_HOST || 'http://43.136.218.87'),
       'import.meta.env.VITE_DEV_MODE': JSON.stringify(process.env.VITE_DEV_MODE || 'false'),
       'import.meta.env.PROD': JSON.stringify(isProd),
-      // 'import.meta.env.VITE_DEBUG_OFFLINE': JSON.stringify('false'), // 改为 'true' 启用离线调试
-      'import.meta.env.VITE_DEBUG_OFFLINE': JSON.stringify('true'), // 改为 'true' 启用离线调试
+      // 生产构建强制 false；开发构建可通过环境变量 VITE_DEBUG_OFFLINE=true 启用离线调试
+      'import.meta.env.VITE_DEBUG_OFFLINE': JSON.stringify(isProd ? 'false' : (process.env.VITE_DEBUG_OFFLINE || 'false')),
     },
 
   css: {
