@@ -1,5 +1,6 @@
 // src-tauri/src/lib.rs
-use log::{error, info};
+use log::{error, info, warn};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
@@ -208,9 +209,25 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol("localimg", |ctx, request, responder| {
             // URL 格式: localimg://{relativePath}
             let uri = request.uri().to_string();
-            let relative_path = uri.strip_prefix("localimg://").unwrap_or("");
+            info!("[LocalImg] Received request: {}", uri);
+
+            // 处理不同的 URI 格式
+            let relative_path = if uri.starts_with("localimg:///") {
+                uri.strip_prefix("localimg:///").unwrap_or("")
+            } else if uri.starts_with("localimg://localhost/") {
+                uri.strip_prefix("localimg://localhost/").unwrap_or("")
+            } else if uri.starts_with("localimg://") {
+                uri.strip_prefix("localimg://").unwrap_or("")
+            } else {
+                ""
+            };
+
+            // 去掉开头的 /
+            let relative_path = relative_path.trim_start_matches('/');
+            info!("[LocalImg] Resolved path: {}", relative_path);
 
             if relative_path.is_empty() {
+                warn!("[LocalImg] Empty path for URI: {}", uri);
                 responder.respond(
                     tauri::http::Response::builder()
                         .status(400)
@@ -220,43 +237,66 @@ pub fn run() {
                 return;
             }
 
-            if let Ok(app_dir) = ctx.app_handle().path().app_data_dir() {
-                let file_path = app_dir
-                    .join("reader")
-                    .join("downloaded")
-                    .join(relative_path);
-                if file_path.exists() {
-                    if let Ok(data) = std::fs::read(&file_path) {
-                        let mime = file_path
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .map(|ext| match ext.to_lowercase().as_str() {
-                                "jpg" | "jpeg" => "image/jpeg",
-                                "png" => "image/png",
-                                "gif" => "image/gif",
-                                "webp" => "image/webp",
-                                "svg" => "image/svg+xml",
-                                _ => "application/octet-stream",
-                            })
-                            .unwrap_or("image/jpeg");
+            // 使用 get_downloaded_images_dir 获取正确的目录
+            match db::get_downloaded_images_dir(ctx.app_handle()) {
+                Ok(images_dir) => {
+                    let file_path = images_dir.join(relative_path);
+                    info!("[LocalImg] Looking for file: {:?}", file_path);
+                    if file_path.exists() {
+                        match std::fs::read(&file_path) {
+                            Ok(data) => {
+                                let mime = file_path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|ext| match ext.to_lowercase().as_str() {
+                                        "jpg" | "jpeg" => "image/jpeg",
+                                        "png" => "image/png",
+                                        "gif" => "image/gif",
+                                        "webp" => "image/webp",
+                                        "svg" => "image/svg+xml",
+                                        _ => "application/octet-stream",
+                                    })
+                                    .unwrap_or("image/jpeg");
+                                info!("[LocalImg] Serving file: {:?} ({} bytes)", file_path, data.len());
+                                responder.respond(
+                                    tauri::http::Response::builder()
+                                        .status(200)
+                                        .header("Content-Type", mime)
+                                        .header("Cache-Control", "max-age=31536000, immutable")
+                                        .body(data)
+                                        .unwrap(),
+                                );
+                            }
+                            Err(e) => {
+                                warn!("[LocalImg] Failed to read file: {:?}, err={}", file_path, e);
+                                responder.respond(
+                                    tauri::http::Response::builder()
+                                        .status(500)
+                                        .body(Vec::new())
+                                        .unwrap(),
+                                );
+                            }
+                        }
+                    } else {
+                        warn!("[LocalImg] File not found: {:?}", file_path);
                         responder.respond(
                             tauri::http::Response::builder()
-                                .status(200)
-                                .header("Content-Type", mime)
-                                .header("Cache-Control", "max-age=31536000, immutable")
-                                .body(data)
+                                .status(404)
+                                .body(Vec::new())
                                 .unwrap(),
                         );
-                        return;
                     }
                 }
+                Err(e) => {
+                    warn!("[LocalImg] Failed to get images dir: {}", e);
+                    responder.respond(
+                        tauri::http::Response::builder()
+                            .status(500)
+                            .body(Vec::new())
+                            .unwrap(),
+                    );
+                }
             }
-            responder.respond(
-                tauri::http::Response::builder()
-                    .status(404)
-                    .body(Vec::new())
-                    .unwrap(),
-            );
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

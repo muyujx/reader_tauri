@@ -16,7 +16,7 @@ fn get_config_path(app: &AppHandle) -> Option<PathBuf> {
     }
 
     let path = config_dir.join("config.json");
-    info!("[Config] Config path: {:?}", path);
+    log::debug!("[Config] Config path: {:?}", path);
     Some(path)
 }
 

@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
+use crate::config_get_cache_dir;
+
 // 缓存目录状态
 pub struct CacheDirState(pub Mutex<Option<PathBuf>>);
 
@@ -279,7 +281,7 @@ pub fn book_get_page(
             let title: Option<String> = row.get(1)?;
             let page_idx: i64 = row.get(2)?;
             let top_chapter: Option<i64> = row.get(3)?;
-            
+
             Ok(PageItem {
                 content: content.unwrap_or_default(),
                 title: title.unwrap_or_default(),
@@ -389,45 +391,45 @@ pub fn book_delete(
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
+    // 先查询已下载图片的本地路径，再删除数据库记录
+    let mut stmt = conn
+        .prepare("SELECT local_path FROM book_image WHERE book_id = ?1 AND status = 1")
+        .map_err(|e| e.to_string())?;
+    let image_paths: Vec<String> = stmt
+        .query_map(params![bookId], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    drop(stmt);
+
+    // 删除数据库记录
     conn.execute("DELETE FROM book_page WHERE book_id = ?1", params![bookId])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM book_image WHERE book_id = ?1", params![bookId])
         .map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM book WHERE book_id = ?1", params![bookId])
         .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM book_image WHERE book_id = ?1", params![bookId])
-        .map_err(|e| e.to_string())?;
 
     // 删除下载的图片文件
-    {
-        let mut stmt = conn
-            .prepare("SELECT local_path FROM book_image WHERE book_id = ?1")
-            .map_err(|e| e.to_string())?;
-        let paths: Vec<String> = stmt
-            .query_map(params![bookId], |row| row.get::<_, String>(0))
-            .map_err(|e| e.to_string())?
-            .filter_map(|r| r.ok())
-            .collect();
-        for path in &paths {
-            let p = std::path::Path::new(path);
-            if p.exists() {
-                let _ = std::fs::remove_file(p);
-            }
-        }
-        // 尝试清理空目录（从文件路径向上遍历删除空目录）
-        for path in &paths {
-            let p = std::path::Path::new(path);
-            let mut parent = p.parent();
-            while let Some(dir) = parent {
-                if dir.starts_with(get_downloaded_images_dir(&app).unwrap_or_default()) {
-                    if dir.read_dir().map(|mut d| d.next().is_none()).unwrap_or(false) {
-                        let _ = std::fs::remove_dir(dir);
-                    }
-                }
-                parent = dir.parent();
-            }
+    for path in &image_paths {
+        let p = std::path::Path::new(path);
+        if p.exists() {
+            let _ = std::fs::remove_file(p);
         }
     }
-    conn.execute("DELETE FROM book_image WHERE book_id = ?1", params![bookId])
-        .map_err(|e| e.to_string())?;
+    // 尝试清理空目录（从文件路径向上遍历删除空目录）
+    for path in &image_paths {
+        let p = std::path::Path::new(path);
+        let mut parent = p.parent();
+        while let Some(dir) = parent {
+            if dir.starts_with(get_downloaded_images_dir(&app).unwrap_or_default()) {
+                if dir.read_dir().map(|mut d| d.next().is_none()).unwrap_or(false) {
+                    let _ = std::fs::remove_dir(dir);
+                }
+            }
+            parent = dir.parent();
+        }
+    }
 
     info!("[DB] Book deleted: bookId={}", bookId);
     Ok(DownloadResult {
@@ -777,6 +779,76 @@ fn replace_image_urls(html: &str, image_map: &HashMap<String, String>) -> String
     result
 }
 
+/// 从 HTML 中提取第一个 img src 用于调试
+fn extract_first_image_url(html: &str) -> Option<String> {
+    if let Some(start) = html.find("src=\"") {
+        let after = &html[start + 5..];
+        if let Some(end) = after.find('"') {
+            return Some(after[..end].to_string());
+        }
+    }
+    if let Some(start) = html.find("src='") {
+        let after = &html[start + 5..];
+        if let Some(end) = after.find('\'') {
+            return Some(after[..end].to_string());
+        }
+    }
+    None
+}
+
+/// 检查 HTML 中的图片 URL 在 book_image 表中的状态
+fn check_image_urls_in_db(conn: &Connection, book_id: i64, html: &str) {
+    // 提取 HTML 中的所有图片 URL
+    let mut urls = Vec::new();
+    let mut remaining = html;
+    while let Some(start) = remaining.find("src=\"") {
+        let after = &remaining[start + 5..];
+        if let Some(end) = after.find('"') {
+            let url = &after[..end];
+            if !url.is_empty() && url.starts_with('/') {
+                urls.push(url.to_string());
+            }
+            remaining = &after[end + 1..];
+        } else {
+            break;
+        }
+    }
+
+    // 查询 book_image 表中该书籍的所有记录
+    let mut stmt = match conn.prepare(
+        "SELECT image_url, status FROM book_image WHERE book_id = ?1"
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            info!("[DB] Failed to query book_image: {}", e);
+            return;
+        }
+    };
+
+    let db_urls: Vec<(String, i32)> = match stmt
+        .query_map(params![book_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)?))
+        }) {
+        Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+        Err(_) => Vec::new(),
+    };
+
+    info!("[DB] book_image table has {} records for bookId={}", db_urls.len(), book_id);
+
+    // 检查 HTML 中的 URL 是否在表中
+    for url in &urls {
+        let found = db_urls.iter().find(|(u, _)| u == url);
+        match found {
+            Some((_, status)) => {
+                info!("[DB] HTML image {} -> status={}", url, status);
+            }
+            None => {
+                info!("[DB] HTML image {} -> NOT in book_image table", url);
+            }
+        }
+    }
+}
+
 /// 将封面图 URL 替换为本地协议 URL
 fn replace_cover_url(cover_url: &str) -> String {
     if cover_url.is_empty() {
@@ -786,10 +858,17 @@ fn replace_cover_url(cover_url: &str) -> String {
     build_local_image_url(&url_path)
 }
 
-/// 获取下载图片的目录路径
+/// 获取下载图片的目录路径（使用用户配置的缓存目录）
 pub fn get_downloaded_images_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(app_dir.join("reader").join("downloaded"))
+    let cache_dir = config_get_cache_dir(app.clone());
+    info!("[DB] get_downloaded_images_dir: cache_dir={}", cache_dir);
+    let dir = PathBuf::from(&cache_dir).join("downloaded");
+    info!("[DB] get_downloaded_images_dir: dir={:?}", dir);
+    // 确保目录存在
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+    Ok(dir)
 }
 
 /// 解析图片 URL 得到本地存储路径
