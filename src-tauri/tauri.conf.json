@@ -26,7 +26,6 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: http: https: localimg:"
     }
   },
   "bundle": {
