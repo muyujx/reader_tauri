@@ -21,6 +21,15 @@ const favoriteGridConfig = computed(() => {
     };
 });
 
+// 下载页网格配置（固定值，与收藏页保持一致）
+const downloadGridConfig = computed(() => {
+    return {
+        pageSize: 9,
+        pagerCount: 7,
+        showPaginationArrows: true,
+    };
+});
+
 // 是否为手机端（固定为 false）
 const isMobile = computed(() => false);
 
@@ -42,6 +51,7 @@ function initResponsiveConfig() {
 export {
     bookGridConfig,
     favoriteGridConfig,
+    downloadGridConfig,
     isMobile,
     isPad,
     isTablet,

@@ -82,10 +82,10 @@
         <el-pagination
             v-model:current-page="page"
             v-model:page-size="pageSize"
-            layout="prev, pager, next, jumper"
+            :layout="paginationLayout"
             :page-count="totalPage"
+            :pager-count="pagerCount"
             @current-change="jumpToPage"
-            hide-on-single-page
         />
 
     </div>
@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import {addHost} from "../../apis/request.ts";
 import log from "../../utils/log";
-import {onUnmounted, ref} from "vue";
+import {onMounted, onUnmounted, ref, computed, nextTick} from "vue";
 import {useRouter} from "vue-router";
 import {Download, Delete} from "@element-plus/icons-vue";
 import {popErr, popSuccess} from "../../utils/message.ts";
@@ -105,6 +105,7 @@ import {loadingStore} from "../../store/loading.ts";
 import hotkeys from "hotkeys-js";
 import {formatDistanceToNow} from 'date-fns';
 import {zhCN} from 'date-fns/locale';
+import {downloadGridConfig, initResponsiveConfig} from "../../common/responsiveConfig.ts";
 import {
     getDownloadedBookListByPage,
     deleteLocalBook,
@@ -114,13 +115,35 @@ import {
 const bookList = ref<DownloadedBookInfo[]>([]);
 const page = ref(1);
 const pageSize = ref(12);
+const pagerCount = computed(() => downloadGridConfig.value.pagerCount);
 const totalPage = ref(1);
 const router = useRouter();
 const empty = ref(false);
 const loading = loadingStore();
 
+// 手机端隐藏翻页按钮，用滑动替代
+const paginationLayout = computed(() => {
+    return downloadGridConfig.value.showPaginationArrows ? 'prev, pager, next, jumper' : 'pager';
+});
+
+// 获取每页数量（基于实际容器高度）
+function getPageSize(): number {
+    // 固定返回配置的 pageSize
+    return downloadGridConfig.value.pageSize || 9;
+}
+
 // 监听窗口大小变化，修改 pageSize
 const onWindowSizeChange = () => {};
+
+onMounted(() => {
+    initResponsiveConfig();
+    nextTick(() => {
+        const curPageSize = getPageSize();
+        if (pageSize.value !== curPageSize) {
+            pageSize.value = curPageSize;
+        }
+    });
+});
 
 onUnmounted(() => {
     log.debug("----- DownloadBook Unmounted ---");
@@ -212,6 +235,8 @@ function enter() {
     hotkeys('left, a, s, page up', 'download', () => jumpToPage(page.value - 1));
     hotkeys('right, f, d, page down', 'download', () => jumpToPage(page.value + 1));
     hotkeys.setScope('download');
+    // 初始化每页数量
+    pageSize.value = getPageSize();
     getBookList(false);
 }
 
