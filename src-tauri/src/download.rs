@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::time::{sleep, Duration};
 
-use crate::db::DbState;
+use crate::db::{DbState, DownloadResult};
 use crate::http::{get_http_client, HttpState};
 
 /// 后端会话失效事件名：下载过程中检测到 cookie 失效时
@@ -38,6 +38,22 @@ pub struct DownloadProgressPayload {
     pub total_page: i64,
 }
 
+/// 恢复下载的结果
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResumeResult {
+    pub success: bool,
+    pub book_id: i64,
+    pub resumed: bool,
+}
+
+/// 通用简单结果（暂停/取消等操作）
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimpleResult {
+    pub success: bool,
+}
+
 #[derive(Deserialize)]
 struct ApiResponse<T> {
     code: i64,
@@ -54,7 +70,16 @@ struct PageItem {
     top_chapter: i64,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ContentsItemApi {
+    level: i64,
+    start_page: i64,
+    label: String,
+}
+
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct PageRequest {
     book_id: i64,
     start_page: i64,
@@ -74,13 +99,17 @@ pub async fn book_download(
     bigCoverPic: String,
     tagId: i64,
     serverHost: String,
-) -> Result<bool, String> {
+) -> Result<DownloadResult, String> {
     info!(
         "[Download] book_download called: bookId={}, totalPage={}",
         bookId, totalPage
     );
 
-    {
+    // 1) 更新/插入书籍元数据，并为所有页补建 status=0 的占位行（OR IGNORE
+    //    保证已有下载完成的页 status=1 不会被覆盖），实现"已下载页跳过"。
+    // 2) 一次性查出尚未下载的页（pending），后台任务只遍历这些页，
+    //    避免对已下载页重复发起 HTTP 请求。
+    let pending_pages: Vec<i64> = {
         let guard = db.0.lock().map_err(|e| e.to_string())?;
         let conn = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -101,14 +130,66 @@ pub async fn book_download(
             .map_err(|e| e.to_string())?;
         }
 
-        info!("[Download] Book record created: bookId={}", bookId);
+        // 拉 status=0 的页（待下载），按页号升序
+        let mut stmt = conn
+            .prepare("SELECT page_idx FROM book_page WHERE book_id = ?1 AND status = 0 ORDER BY page_idx")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(rusqlite::params![bookId], |row| row.get::<_, i64>(0))
+            .map_err(|e| e.to_string())?;
+        let mut pages = Vec::new();
+        for r in rows {
+            if let Ok(p) = r {
+                pages.push(p);
+            }
+        }
+        pages
+    };
+
+    info!(
+        "[Download] Pending pages for bookId={}: {} (total={})",
+        bookId,
+        pending_pages.len(),
+        totalPage,
+    );
+
+    // 已无待下载页：直接视为完成，不创建任务
+    if pending_pages.is_empty() {
+        info!(
+            "[Download] All pages already downloaded: bookId={}, totalPage={}",
+            bookId, totalPage
+        );
+        info!(
+            "[Download] emit(all_downloaded): bookId={}, downloadedPages={}, totalPage={}",
+            bookId, totalPage, totalPage
+        );
+        match app.emit(
+            "book_download_progress",
+            &DownloadProgressPayload {
+                book_id: bookId,
+                downloaded_pages: totalPage,
+                total_page: totalPage,
+            },
+        ) {
+            Ok(_) => {
+                info!("[Download] emit_ok: bookId={}, all_pages_already_downloaded", bookId);
+            }
+            Err(e) => error!("[Download] emit_ERR: bookId={}, err={}", bookId, e),
+        }
+        return Ok(DownloadResult {
+            success: false,
+            book_id: bookId,
+        });
     }
 
     {
         let tasks = manager.tasks.lock().map_err(|e| e.to_string())?;
         if tasks.contains_key(&bookId) {
             info!("[Download] Book already downloading: bookId={}", bookId);
-            return Ok(false);
+            return Ok(DownloadResult {
+                success: false,
+                book_id: bookId,
+            });
         }
     }
 
@@ -125,16 +206,19 @@ pub async fn book_download(
     }
 
     // 使用全局带 cookie 的 HTTP Client：登录态由 reqwest Jar 维护，
-// 前台请求 / 登录都已自动把 cookie 写入 jar 并持久化到磁盘，
-// 后台下载直接复用即可，无需任何 cookie 注入逻辑。
-let client = get_http_client(&http_state);
+    // 前台请求 / 登录都已自动把 cookie 写入 jar 并持久化到磁盘，
+    // 后台下载直接复用即可，无需任何 cookie 注入逻辑。
+    let client = get_http_client(&http_state);
 
-info!(
-    "[Download] Download task registered: bookId={}, using global cookie client",
-    bookId,
-);
+    info!(
+        "[Download] Download task registered: bookId={}, pending={}, using global cookie client",
+        bookId,
+        pending_pages.len(),
+    );
 
     let host = serverHost.trim_end_matches('/').to_string();
+    // 已下载完成的页数（任务起始基线），用于 emit 进度时给出累计 downloaded_pages
+    let downloaded_base = totalPage - pending_pages.len() as i64;
 
     tokio::spawn(async move {
         if let Err(e) = background_download(
@@ -145,6 +229,8 @@ info!(
             client,
             paused,
             cancelled,
+            pending_pages,
+            downloaded_base,
         )
         .await
         {
@@ -159,7 +245,10 @@ info!(
         }
     });
 
-    Ok(true)
+    Ok(DownloadResult {
+        success: true,
+        book_id: bookId,
+    })
 }
 
 async fn background_download(
@@ -170,17 +259,39 @@ async fn background_download(
     client: reqwest::Client,
     paused: Arc<AtomicBool>,
     cancelled: Arc<AtomicBool>,
+    pending_pages: Vec<i64>,
+    downloaded_base: i64,
 ) -> Result<(), String> {
     info!(
-        "[Download] Background task start: bookId={}, serverHost={}, totalPages={}",
-        book_id, server_host, total_page,
+        "[Download] Background task start: bookId={}, serverHost={}, totalPages={}, pending={}, alreadyDownloaded={}",
+        book_id, server_host, total_page, pending_pages.len(), downloaded_base,
     );
+
+    // 下载目录
+    let contents_url = format!("{}/api/book/info/get/contents", server_host);
+    match client.get(&contents_url).query(&[("bookId", book_id)]).send().await {
+        Ok(resp) => {
+            if let Ok(api_resp) = resp.json::<ApiResponse<Vec<ContentsItemApi>>>().await {
+                if api_resp.code == 0 {
+                    if let Some(items) = api_resp.data {
+                        save_contents_to_db(&app, book_id, &items);
+                        info!("[Download] Contents saved: bookId={}, count={}", book_id, items.len());
+                    }
+                } else {
+                    warn!("[Download] Contents API error: bookId={}, code={}", book_id, api_resp.code);
+                }
+            }
+        }
+        Err(e) => warn!("[Download] Contents HTTP error: bookId={}, err={}", book_id, e),
+    }
 
     let page_url = format!("{}/api/book/page/html/page", server_host);
     let mut last_progress_pct = 0i64;
+    // 本任务已成功下完的页数（不含 downloaded_base），用于推算 emit 的累计 downloaded_pages
+    let mut done_in_task = 0i64;
+    let pending_len = pending_pages.len();
 
-    let mut page = 1i64;
-    while page <= total_page {
+    for page in pending_pages {
         if cancelled.load(Ordering::Relaxed) {
             info!("[Download] Download cancelled: bookId={}", book_id);
             break;
@@ -203,9 +314,17 @@ async fn background_download(
             page_size: 1,
         };
 
+        info!(
+            "[Download] http_request: bookId={}, page={}, url={}",
+            book_id, page, page_url
+        );
         match client.post(&page_url).json(&req_body).send().await {
             Ok(resp) => {
                 let status = resp.status();
+                info!(
+                    "[Download] http_response: bookId={}, page={}, status={}",
+                    book_id, page, status
+                );
 
                 // HTTP 层会话失效（401/403）：通知前端重新登录并终止下载
                 if status == reqwest::StatusCode::UNAUTHORIZED
@@ -215,10 +334,13 @@ async fn background_download(
                         "[Download] Session expired (HTTP {}) for bookId={}, page={}",
                         status, book_id, page
                     );
-                    let _ = app.emit(
+                    match app.emit(
                         SESSION_EXPIRED_EVENT,
                         serde_json::json!({ "bookId": book_id, "status": status.as_u16() }),
-                    );
+                    ) {
+                        Ok(_) => {}
+                        Err(e) => error!("[Download] emit session_expired failed: bookId={}, err={}", book_id, e),
+                    }
                     break;
                 }
 
@@ -231,73 +353,107 @@ async fn background_download(
                     continue;
                 }
 
-                match resp.json::<ApiResponse<Vec<PageItem>>>().await {
+                // 先读取原始响应文本，便于排查 API 返回格式问题
+                let resp_text = match resp.text().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        info!("[Download] resp_read_ERR: bookId={}, page={}, err={}", book_id, page, e);
+                        sleep(Duration::from_secs(1)).await;
+                        continue;
+                    }
+                };
+                info!(
+                    "[Download] resp_body: bookId={}, page={}, body={}",
+                    book_id, page, resp_text.chars().take(500).collect::<String>()
+                );
+
+                match serde_json::from_str::<ApiResponse<Vec<PageItem>>>(&resp_text) {
                     Ok(api_resp) => {
+                        info!(
+                            "[Download] api_parse_ok: bookId={}, page={}, code={}",
+                            book_id, page, api_resp.code
+                        );
                         // 业务层会话失效（code=100）：通知前端重新登录并终止下载
                         if api_resp.code == 100 {
                             info!(
                                 "[Download] Session expired (API code=100) for bookId={}, page={}",
                                 book_id, page
                             );
-                            let _ = app.emit(
+                            match app.emit(
                                 SESSION_EXPIRED_EVENT,
                                 serde_json::json!({ "bookId": book_id, "apiCode": api_resp.code }),
-                            );
+                            ) {
+                                Ok(_) => {}
+                                Err(e) => error!("[Download] emit session_expired failed: bookId={}, err={}", book_id, e),
+                            }
                             break;
                         }
 
                         if api_resp.code == 0 {
                             if let Some(items) = api_resp.data {
+                                if items.is_empty() {
+                                    warn!(
+                                        "[Download] api_empty_data: bookId={}, page={}, code=0 but no items",
+                                        book_id, page
+                                    );
+                                }
                                 for item in &items {
-                                    let now = chrono::Utc::now().timestamp();
-                                    let db_state = app.state::<DbState>();
-                                    let guard = db_state.0.lock().map_err(|e| format!("{e}"));
-                                    if let Ok(guard) = guard {
-                                        if let Some(ref conn) = *guard {
-                                            if let Err(e) = conn.execute(
-                                                "INSERT OR REPLACE INTO book_page (book_id, page_idx, content, title, top_chapter, status, create_time)
-                                                 VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
-                                                rusqlite::params![
-                                                    book_id,
-                                                    item.page,
-                                                    item.content,
-                                                    item.title,
-                                                    item.top_chapter,
-                                                    now,
-                                                ],
-                                            ) {
-                                                error!("[Download] DB write failed: bookId={}, page={}, err={}", book_id, item.page, e);
-                                            }
-                                        }
-                                    }
-
-                                    let payload = DownloadProgressPayload {
-                                        book_id,
-                                        downloaded_pages: item.page,
-                                        total_page,
-                                    };
-                                    let _ = app.emit("book_download_progress", &payload);
-
-                                    page = item.page + 1;
-
-                                    let pct = (page * 100) / total_page;
-                                    if pct >= last_progress_pct + 10 {
-                                        last_progress_pct = pct;
+                                    //落库标记 status=1；INSERT OR REPLACE 覆盖之前可能存在的 status=0 占位行
+                                    let save_ok = save_page_to_db(&app, book_id, item);
+                                    if save_ok {
+                                        done_in_task += 1;
+                                        let downloaded_pages = downloaded_base + done_in_task;
                                         info!(
-                                            "[Download] Progress: bookId={}, {}/{} ({}%)",
-                                            book_id, page - 1, total_page, pct
+                                            "[Download] page_saved: bookId={}, page={}, downloadedPages={}/{}, base={}, doneInTask={}",
+                                            book_id, item.page, downloaded_pages, total_page, downloaded_base, done_in_task
+                                        );
+                                        match app.emit(
+                                            "book_download_progress",
+                                            &DownloadProgressPayload {
+                                                book_id,
+                                                downloaded_pages,
+                                                total_page,
+                                            },
+                                        ) {
+                                            Ok(_) => {
+                                                info!(
+                                                    "[Download] emit_ok: bookId={}, downloadedPages={}, totalPage={}",
+                                                    book_id, downloaded_pages, total_page
+                                                );
+                                            }
+                                            Err(e) => error!("[Download] emit_ERR: bookId={}, err={}", book_id, e),
+                                        }
+
+                                        let pct = if total_page > 0 {
+                                            (downloaded_pages * 100) / total_page
+                                        } else {
+                                            0
+                                        };
+                                        if pct >= last_progress_pct + 10 {
+                                            last_progress_pct = pct;
+                                            info!(
+                                                "[Download] Progress: bookId={}, {}/{} ({}%)",
+                                                book_id, downloaded_pages, total_page, pct
+                                            );
+                                        }
+                                    } else {
+                                        warn!(
+                                            "[Download] save_page_FAILED: bookId={}, page={}",
+                                            book_id, item.page
                                         );
                                     }
                                 }
                             } else {
-                                page += 1;
+                                warn!(
+                                    "[Download] api_data_none: bookId={}, page={}, code=0 but data is None",
+                                    book_id, page
+                                );
                             }
                         } else {
                             info!(
                                 "[Download] API error for bookId={}, page={}: code={}, msg={:?}",
                                 book_id, page, api_resp.code, api_resp.message
                             );
-                            page += 1;
                         }
                     }
                     Err(e) => {
@@ -305,7 +461,6 @@ async fn background_download(
                             "[Download] JSON parse error for bookId={}, page={}: {}",
                             book_id, page, e
                         );
-                        page += 1;
                     }
                 }
             }
@@ -321,8 +476,86 @@ async fn background_download(
         sleep(Duration::from_millis(100)).await;
     }
 
-    info!("[Download] Download completed: bookId={}", book_id);
+    let final_downloaded = downloaded_base + done_in_task;
+    info!(
+        "[Download] Download loop done: bookId={}, total={}, pending={}, finalDownloaded={}/{}, doneInTask={}",
+        book_id, total_page, pending_len, final_downloaded, total_page, done_in_task
+    );
     Ok(())
+}
+
+/// 把目录写入数据库
+fn save_contents_to_db(app: &AppHandle, book_id: i64, items: &[ContentsItemApi]) {
+    let db_state = app.state::<DbState>();
+    let guard = match db_state.0.lock() {
+        Ok(g) => g,
+        Err(e) => {
+            error!("[Download] Contents DB lock failed: bookId={}, err={}", book_id, e);
+            return;
+        }
+    };
+    let conn = match guard.as_ref() {
+        Some(c) => c,
+        None => {
+            error!("[Download] Contents DB not initialized: bookId={}", book_id);
+            return;
+        }
+    };
+
+    for item in items {
+        if let Err(e) = conn.execute(
+            "INSERT OR REPLACE INTO book_contents (book_id, level, start_page, label)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![book_id, item.level, item.start_page, item.label],
+        ) {
+            error!(
+                "[Download] Contents save failed: bookId={}, startPage={}, err={}",
+                book_id, item.start_page, e
+            );
+        }
+    }
+}
+
+/// 把单页内容写入数据库（status=1），返回是否写入成功。
+/// 抽出来便于在循环里复用并集中处理 DB 错误日志。
+fn save_page_to_db(app: &AppHandle, book_id: i64, item: &PageItem) -> bool {
+    let now = chrono::Utc::now().timestamp();
+    let db_state = app.state::<DbState>();
+    let guard = db_state.0.lock();
+    match guard {
+        Ok(guard) => {
+            if let Some(ref conn) = *guard {
+                match conn.execute(
+                    "INSERT OR REPLACE INTO book_page (book_id, page_idx, content, title, top_chapter, status, create_time)
+                     VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
+                    rusqlite::params![
+                        book_id,
+                        item.page,
+                        item.content,
+                        item.title,
+                        item.top_chapter,
+                        now,
+                    ],
+                ) {
+                    Ok(_) => true,
+                    Err(e) => {
+                        error!(
+                            "[Download] DB write failed: bookId={}, page={}, err={}",
+                            book_id, item.page, e
+                        );
+                        false
+                    }
+                }
+            } else {
+                error!("[Download] DB not initialized when saving page: bookId={}", book_id);
+                false
+            }
+        }
+        Err(e) => {
+            error!("[Download] DB lock failed: bookId={}, err={}", book_id, e);
+            false
+        }
+    }
 }
 
 #[tauri::command]
@@ -357,12 +590,15 @@ pub fn book_save_downloaded_page(
     content: String,
     title: String,
     top_chapter: i64,
-) -> Result<bool, String> {
+) -> Result<DownloadResult, String> {
     {
         let tasks = manager.tasks.lock().map_err(|e| e.to_string())?;
         if let Some(task) = tasks.get(&book_id) {
             if task.cancelled.load(Ordering::Relaxed) {
-                return Ok(false);
+                return Ok(DownloadResult {
+                    success: false,
+                    book_id,
+                });
             }
         }
     }
@@ -378,18 +614,39 @@ pub fn book_save_downloaded_page(
     )
     .map_err(|e| e.to_string())?;
 
+    // 从数据库查询实际已下载完成的页数，避免 page_idx 误导进度
+    let downloaded_pages: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM book_page WHERE book_id = ?1 AND status = 1",
+            rusqlite::params![book_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
     let payload = DownloadProgressPayload {
         book_id,
-        downloaded_pages: page_idx,
+        downloaded_pages,
         total_page,
     };
-    let _ = app.emit("book_download_progress", &payload);
+    info!(
+        "[Download] emit(save_downloaded_page): bookId={}, downloadedPages={}, totalPage={}, pageIdx={}",
+        book_id, downloaded_pages, total_page, page_idx
+    );
+    match app.emit("book_download_progress", &payload) {
+        Ok(_) => {
+            info!("[Download] emit_ok: bookId={}, save_downloaded_page", book_id);
+        }
+        Err(e) => error!("[Download] emit_ERR: bookId={}, err={}", book_id, e),
+    }
 
     info!(
-        "[Download] Page saved: bookId={}, page={}/{}",
-        book_id, page_idx, total_page
+        "[Download] Page saved: bookId={}, page={}/{}, downloaded={}",
+        book_id, page_idx, total_page, downloaded_pages
     );
-    Ok(true)
+    Ok(DownloadResult {
+        success: true,
+        book_id,
+    })
 }
 
 #[tauri::command]
@@ -433,14 +690,14 @@ pub fn book_finish_download(
 pub fn book_pause_download(
     manager: State<'_, DownloadManager>,
     bookId: i64,
-) -> Result<bool, String> {
+) -> Result<SimpleResult, String> {
     let tasks = manager.tasks.lock().map_err(|e| e.to_string())?;
     if let Some(task) = tasks.get(&bookId) {
         task.paused.store(true, Ordering::Relaxed);
         info!("[Download] Download paused: bookId={}", bookId);
-        Ok(true)
+        Ok(SimpleResult { success: true })
     } else {
-        Ok(false)
+        Ok(SimpleResult { success: false })
     }
 }
 
@@ -448,14 +705,22 @@ pub fn book_pause_download(
 pub fn book_resume_download(
     manager: State<'_, DownloadManager>,
     bookId: i64,
-) -> Result<bool, String> {
+) -> Result<ResumeResult, String> {
     let tasks = manager.tasks.lock().map_err(|e| e.to_string())?;
     if let Some(task) = tasks.get(&bookId) {
         task.paused.store(false, Ordering::Relaxed);
         info!("[Download] Download resumed: bookId={}", bookId);
-        Ok(true)
+        Ok(ResumeResult {
+            success: true,
+            book_id: bookId,
+            resumed: true,
+        })
     } else {
-        Ok(false)
+        Ok(ResumeResult {
+            success: false,
+            book_id: bookId,
+            resumed: false,
+        })
     }
 }
 
@@ -463,13 +728,13 @@ pub fn book_resume_download(
 pub fn book_cancel_download(
     manager: State<'_, DownloadManager>,
     bookId: i64,
-) -> Result<bool, String> {
+) -> Result<SimpleResult, String> {
     let tasks = manager.tasks.lock().map_err(|e| e.to_string())?;
     if let Some(task) = tasks.get(&bookId) {
         task.cancelled.store(true, Ordering::Relaxed);
         info!("[Download] Download cancelled: bookId={}", bookId);
-        Ok(true)
+        Ok(SimpleResult { success: true })
     } else {
-        Ok(false)
+        Ok(SimpleResult { success: false })
     }
 }

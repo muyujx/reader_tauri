@@ -141,7 +141,11 @@ pub async fn rq_post(
     url: String,
     body: Option<String>,
 ) -> Result<NetResponse, String> {
-    info!("[Http] rq_post url={}", url);
+    info!(
+        "[Http] rq_post url={}, body={}",
+        url,
+        body.as_ref().map(|b| b.chars().take(200).collect::<String>()).unwrap_or_else(|| "(none)".to_string())
+    );
 
     let mut req = state.client.post(&url);
     if let Some(b) = body {
@@ -160,6 +164,12 @@ pub async fn rq_post(
         .text()
         .await
         .map_err(|e| format!("read body failed: {}", e))?;
+
+    info!(
+        "[Http] rq_post resp: status={}, body={}",
+        status,
+        text.chars().take(500).collect::<String>()
+    );
 
     Ok(NetResponse {
         status,

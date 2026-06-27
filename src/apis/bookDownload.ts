@@ -46,13 +46,15 @@ export function downloadBook(bookInfo: BookInfo): Promise<{ success: boolean, bo
 
 /**
  * 继续下载书籍（断点续传）
+ * 后端返回 ResumeResult: { success, bookId, resumed }
  */
-export function resumeBookDownload(bookId: number): Promise<{ success: boolean, bookId: number, resumed?: boolean }> {
+export function resumeBookDownload(bookId: number): Promise<{ success: boolean, bookId: number, resumed: boolean }> {
     return ipcInvoke(ipcChannel.bookResumeDownload, { bookId });
 }
 
 /**
  * 暂停下载
+ * 后端返回 SimpleResult: { success }
  */
 export function pauseBookDownload(bookId: number): Promise<{ success: boolean }> {
     return ipcInvoke(ipcChannel.bookPauseDownload, { bookId });
@@ -60,6 +62,7 @@ export function pauseBookDownload(bookId: number): Promise<{ success: boolean }>
 
 /**
  * 取消下载
+ * 后端返回 SimpleResult: { success }
  */
 export function cancelBookDownload(bookId: number): Promise<{ success: boolean }> {
     return ipcInvoke(ipcChannel.bookCancelDownload, { bookId });
@@ -88,8 +91,18 @@ export function getLocalImage(bookId: number, imageUrl: string): Promise<{ data:
     return ipcInvoke(ipcChannel.bookGetLocalImage, { bookId, imageUrl });
 }
 
-export function onDownloadProgress(callback: (progress: DownloadProgressEvent) => void): void {
-    ipcOn(ipcChannel.bookDownloadProgress, (...args: any[]) => {
+export interface LocalContentsItem {
+    level: number;
+    startPage: number;
+    label: string;
+}
+
+export function getLocalContents(bookId: number): Promise<LocalContentsItem[]> {
+    return ipcInvoke(ipcChannel.bookGetLocalContents, { bookId });
+}
+
+export function onDownloadProgress(callback: (progress: DownloadProgressEvent) => void): Promise<() => void> {
+    return ipcOn(ipcChannel.bookDownloadProgress, (...args: any[]) => {
         callback(args[0]);
     });
 }
@@ -102,8 +115,8 @@ export function onDownloadProgress(callback: (progress: DownloadProgressEvent) =
  */
 export function onDownloadSessionExpired(
     callback: (payload: { bookId: number; status?: number; apiCode?: number }) => void
-): void {
-    ipcOn(ipcChannel.bookDownloadSessionExpired, (...args: any[]) => {
+): Promise<() => void> {
+    return ipcOn(ipcChannel.bookDownloadSessionExpired, (...args: any[]) => {
         callback(args[0]);
     });
 }

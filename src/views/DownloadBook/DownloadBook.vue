@@ -68,23 +68,9 @@
                     </div>
 
                     <div class="item">
-                        <p>下载状态:</p>
-                        <div class="detail_item_content">
-                            <p>{{ book.downloadedPages }} / {{ book.totalPage }} 页</p>
-                            <el-progress
-                                :text-inside="true"
-                                :stroke-width="15"
-                                :format="num => `${num}%`"
-                                :percentage="book.progress"
-                            />
-                        </div>
+                        <p>下载进度:</p>
+                        <p>{{ book.progress }}%</p>
                     </div>
-
-                    <div class="item">
-                        <p>下载时间:</p>
-                        <p>{{ formatDate(book.createTime) }}</p>
-                    </div>
-
 
                 </div>
 
@@ -110,6 +96,7 @@
 
 <script setup lang="ts">
 import {addHost} from "../../apis/request.ts";
+import log from "../../utils/log";
 import {onUnmounted, ref} from "vue";
 import {useRouter} from "vue-router";
 import {Download, Delete} from "@element-plus/icons-vue";
@@ -148,7 +135,7 @@ const onWindowSizeChange = (width: number, height: number) => {
 };
 windowSizeListener.on(onWindowSizeChange);
 onUnmounted(() => {
-    console.log("----- DownloadBook Unmounted ---");
+    log.debug("----- DownloadBook Unmounted ---");
     windowSizeListener.delete(onWindowSizeChange);
 })
 
@@ -203,12 +190,6 @@ function deleteBook(bookId: number) {
         });
 }
 
-function formatDate(timestamp: number): string {
-    if (!timestamp) return '未知';
-    const date = new Date(timestamp * 1000);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 /**
  * 格式化阅读时间
  * @param minutes 分钟数
@@ -240,7 +221,7 @@ function getLastRead(lastReadTime: number): string {
 
 
 function enter() {
-    console.log("--- DownloadBook Page Enter ----");
+    log.debug("--- DownloadBook Page Enter ----");
     hotkeys('left, a, s, page up', 'download', () => jumpToPage(page.value - 1));
     hotkeys('right, f, d, page down', 'download', () => jumpToPage(page.value + 1));
     hotkeys.setScope('download');
@@ -248,7 +229,7 @@ function enter() {
 }
 
 function leave() {
-    console.log("--- DownloadBook Page Leave ----");
+    log.debug("--- DownloadBook Page Leave ----");
     hotkeys.deleteScope('download');
 }
 

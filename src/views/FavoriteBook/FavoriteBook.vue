@@ -67,59 +67,49 @@
                     </div>
 
                     <div class="action-buttons">
+                        <!-- 统一的下载状态视图：idle / loading / paused / done 四态 -->
+                        <!-- idle: 未下载，显示下载图标 -->
                         <div class="download-book"
-                             @click.stop="downloadBook(book)"
-                             v-if="!downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.downloaded && !downloadStatus[book.bookId]?.hasPartialDownload"
+                             @click.stop="handleDownloadClick(book)"
+                             v-if="viewMode(book.bookId) === 'idle'"
+                             title="点击下载"
                         >
                             <el-icon>
                                 <Download/>
                             </el-icon>
                         </div>
 
+                        <!-- loading: 下载中，圆形进度，点击暂停 -->
                         <div class="download-progress clickable"
                              @click.stop="handleDownloadClick(book)"
-                             v-else-if="downloadStatus[book.bookId]?.hasPartialDownload && !downloadStatus[book.bookId]?.downloading && !downloadStatus[book.bookId]?.paused"
-                             title="点击继续下载"
-                        >
-                            <el-progress
-                                type="circle"
-                                :width="24"
-                                :percentage="downloadStatus[book.bookId]?.progress || 0"
-                                :show-text="false"
-                            />
-                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
-                        </div>
-
-                        <div class="download-progress clickable"
-                             @click.stop="handleDownloadClick(book)"
-                             v-else-if="downloadStatus[book.bookId]?.paused"
-                             title="点击继续下载"
-                        >
-                            <el-progress
-                                type="circle"
-                                :width="24"
-                                :percentage="downloadStatus[book.bookId]?.progress || 0"
-                                :show-text="false"
-                            />
-                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
-                        </div>
-
-                        <div class="download-progress clickable"
-                             @click.stop="handleDownloadClick(book)"
-                             v-else-if="downloadStatus[book.bookId]?.downloading"
+                             v-else-if="viewMode(book.bookId) === 'loading'"
                              title="点击暂停"
                         >
                             <el-progress
                                 type="circle"
-                                :width="24"
+                                :width="30"
+                                :stroke-width="3"
                                 :percentage="downloadStatus[book.bookId]?.progress || 0"
-                                :show-text="false"
                             />
-                            <span class="progress-text">{{ downloadStatus[book.bookId]?.progress || 0 }}%</span>
                         </div>
 
+                        <!-- paused: 暂停中 或 部分下载未启动（含重启后恢复），圆形进度，点击继续 -->
+                        <div class="download-progress clickable"
+                             @click.stop="handleDownloadClick(book)"
+                             v-else-if="viewMode(book.bookId) === 'paused'"
+                             title="点击继续下载"
+                        >
+                            <el-progress
+                                type="circle"
+                                :width="30"
+                                :stroke-width="3"
+                                :percentage="downloadStatus[book.bookId]?.progress || 0"
+                            />
+                        </div>
+
+                        <!-- done: 下载完成，绿色对勾 -->
                         <div class="download-complete"
-                             v-else-if="downloadStatus[book.bookId]?.downloaded"
+                             v-else-if="viewMode(book.bookId) === 'done'"
                         >
                             <el-icon color="#67c23a">
                                 <CircleCheck/>
@@ -176,6 +166,7 @@ import windowSizeListener from "../../service/windowSize.ts";
 import {formatDistanceToNow} from 'date-fns';
 import {zhCN} from 'date-fns/locale';
 import {favoriteGridConfig, initResponsiveConfig} from "../../common/responsiveConfig.ts";
+import log from "../../utils/log";
 import {
     downloadBook as downloadBookApi,
     resumeBookDownload,
@@ -235,15 +226,37 @@ const tags = ref<BookTag[]>([]);
 const empty = ref(false);
 const loading = loadingStore();
 
+// 下载状态：以"进度百分比 + 是否正在下载 + 是否暂停"三个维度派生视图状态
+// （去除历史混杂的 downloaded/hasPartialDownload，唯一真源是 progress + downloading + paused）
 interface DownloadStatus {
+    /** 是否有活跃后台任务（前端本地维护，刷新后默认 false） */
     downloading: boolean;
-    downloaded: boolean;
+    /** 是否处于暂停状态（与 downloading=true 配合表示后台任务已暂停；刷新后默认 false） */
+    paused: boolean;
+    /** 下载完成百分比 0~100 */
     progress: number;
-    hasPartialDownload?: boolean;
-    paused?: boolean;
 }
 
 const downloadStatus = ref<Record<number, DownloadStatus>>({});
+
+/**
+ * 统一的下载视图状态机：
+ *   - 'done'    : progress >= 100，显示绿色对勾
+ *   - 'loading' : downloading && !paused，显示圆形进度，点击暂停
+ *   - 'paused'  : 其它任意有进度的状态（含暂停中、关掉程序后的部分进度），显示圆形进度，点击继续
+ *   - 'idle'    : progress=0 且未下载，显示下载图标
+ * 简化前模板里有 4 个互相打架的 v-else-if，现在所有展示分支都由此函数推导。
+ */
+type ViewMode = 'idle' | 'loading' | 'paused' | 'done';
+function viewMode(bookId: number): ViewMode {
+    const s = downloadStatus.value[bookId];
+    if (!s) return 'idle';
+    if (s.progress >= 100) return 'done';
+    if (s.downloading && !s.paused) return 'loading';
+    // 只有确实下过部分页（progress>0）才显示"暂停/继续"按钮
+    // progress=0 且无活跃任务 -> 归 idle，显示下载图标（修复之前未下载的书全落 paused 的 bug）
+    return s.progress > 0 ? 'paused' : 'idle';
+}
 
 // 监听窗口大小变化，修改 pageSize
 const onWindowSizeChange = () => {
@@ -266,8 +279,13 @@ onMounted(() => {
     });
 });
 onUnmounted(() => {
-    console.log("----- FavoriteBook Unmounted ---");
+    log.debug("----- FavoriteBook Unmounted ---");
     windowSizeListener.delete(onWindowSizeChange);
+    // 清理所有 Tauri 事件监听器
+    for (const fn of unlistenFns) {
+        try { fn(); } catch(e) { log.error('[Unlisten error]', e); }
+    }
+    unlistenFns.length = 0;
 })
 
 function getBookList(showLoading = true) {
@@ -286,26 +304,30 @@ function getBookList(showLoading = true) {
 
             for (const book of bookInfoList.content) {
                 const progressInfo = await getDownloadProgress(book.bookId);
-                
-                // 根据 exists 字段判断书籍是否存在
-                const isBookExists = progressInfo.exists;
-                const isFullyDownloaded = isBookExists && progressInfo.downloadedPages >= progressInfo.totalPage;
-                const hasPartialDownload = isBookExists && progressInfo.downloadedPages > 0 && !isFullyDownloaded;
-                const progress = isBookExists && progressInfo.totalPage > 0
-                    ? Math.floor((progressInfo.downloadedPages / progressInfo.totalPage) * 100)
+
+                // 仅数据库中有该书的下载记录时，根据 downloadedPages/totalPage 计算进度
+                // （downloading/paused 由本地状态保留，不依赖数据库——刷新后默认无活跃任务）
+                const progress = progressInfo.exists && progressInfo.totalPage > 0
+                    ? Math.min(100, Math.floor((progressInfo.downloadedPages / progressInfo.totalPage) * 100))
                     : 0;
-                
-                if (!downloadStatus.value[book.bookId]) {
+
+                // 已存在本地状态时仅刷新进度，保留 downloading/paused（避免覆盖实时下载状态）
+                // 但只有在没有活跃下载任务时才更新进度（防止 DB 中的旧数据覆盖实时进度）
+                const existing = downloadStatus.value[book.bookId];
+                if (existing) {
+                    if (!existing.downloading) {
+                        downloadStatus.value[book.bookId] = {
+                            downloading: existing.downloading,
+                            paused: existing.paused,
+                            progress,
+                        };
+                    }
+                } else {
                     downloadStatus.value[book.bookId] = {
                         downloading: false,
-                        downloaded: isFullyDownloaded,
-                        progress: progress,
-                        hasPartialDownload: hasPartialDownload
+                        paused: false,
+                        progress,
                     };
-                } else if (!downloadStatus.value[book.bookId].downloaded) {
-                    downloadStatus.value[book.bookId].downloaded = isFullyDownloaded;
-                    downloadStatus.value[book.bookId].progress = progress;
-                    downloadStatus.value[book.bookId].hasPartialDownload = hasPartialDownload;
                 }
             }
         })
@@ -316,112 +338,216 @@ function getBookList(showLoading = true) {
         });
 }
 
+/**
+ * 点击下载区按钮的统一分派：
+ *   - loading: 调 pauseBookDownload 并置 paused=true
+ *   - paused : 若后台任务仍在（downloading=true，真暂停），调 resumeBookDownload 并置 paused=false；
+ *              若 task 已不在（重启后/部分进度未启动），调 downloadBookApi 重启下载（后端会自动跳过已下载页）
+ *   - idle    : 启动新下载
+ */
 async function handleDownloadClick(book: FavoriteBookInfo) {
-    const status = downloadStatus.value[book.bookId];
-    
-    // 下载中 - 暂停
-    if (status?.downloading && !status.paused) {
-        await pauseBookDownload(book.bookId);
-        downloadStatus.value[book.bookId].paused = true;
-        popSuccess('已暂停');
+    const mode = viewMode(book.bookId);
+    const prevProgress = downloadStatus.value[book.bookId]?.progress || 0;
+
+    if (mode === 'loading') {
+        // 下载中 -> 暂停
+        try {
+            await pauseBookDownload(book.bookId);
+            const s = downloadStatus.value[book.bookId];
+            if (s) {
+                downloadStatus.value[book.bookId] = { ...s, paused: true };
+            }
+            popSuccess('已暂停');
+        } catch (e) {
+            log.error('[Download] pause failed:', book.bookId, e);
+            popErr('暂停失败');
+        }
         return;
     }
-    
-    // 暂停中 - 继续
-    if (status?.paused) {
-        downloadStatus.value[book.bookId].paused = false;
-        await resumeBookDownload(book.bookId);
+
+    if (mode === 'paused') {
+        const s = downloadStatus.value[book.bookId];
+        // 真暂停（后台 task 仍在）走 resume；其它"部分进度未启动"场景走重启下载
+        const useResume = !!s?.downloading;
+
+        // 先乐观标记为下载中
+        downloadStatus.value[book.bookId] = {
+            downloading: true,
+            paused: false,
+            progress: prevProgress,
+        };
+
+        try {
+            if (useResume) {
+                await resumeBookDownload(book.bookId);
+                popSuccess('继续下载');
+            } else {
+                const result = await downloadBookApi(toBookInfo(book, prevProgress));
+                if (result.success) {
+                    popSuccess('继续下载');
+                } else {
+                    // 后端返回 success: false，可能是书籍已在下载中或所有页面已下载
+                    // 检查是否所有页面已下载（通过查询下载进度）
+                    const progressInfo = await getDownloadProgress(book.bookId);
+                    if (progressInfo.exists && progressInfo.totalPage > 0) {
+                        const progress = Math.min(100, Math.floor((progressInfo.downloadedPages / progressInfo.totalPage) * 100));
+                        downloadStatus.value[book.bookId] = {
+                            downloading: false,
+                            paused: false,
+                            progress,
+                        };
+                        if (progress >= 100) {
+                            popSuccess('书籍已下载完成');
+                        } else {
+                            popErr('书籍可能正在下载中，请稍后重试');
+                        }
+                    } else {
+                        downloadStatus.value[book.bookId] = {
+                            downloading: false,
+                            paused: false,
+                            progress: prevProgress,
+                        };
+                        popErr('继续下载失败：无法启动下载任务');
+                    }
+                }
+            }
+        } catch (e) {
+            // 失败回滚
+            downloadStatus.value[book.bookId] = {
+                downloading: false,
+                paused: false,
+                progress: prevProgress,
+            };
+            log.error('[Download] resume/restart failed:', book.bookId, e);
+            popErr('继续下载失败: ' + (typeof e === 'string' ? e : JSON.stringify(e)));
+        }
         return;
     }
-    
-    // 其他情况 - 开始/继续下载
-    await downloadBook(book);
+
+    // idle -> 全新下载
+    await startDownload(book, prevProgress);
 }
 
-async function downloadBook(book: FavoriteBookInfo) {
-    console.log('[Download] downloadBook called:', book.bookId, book.bookName);
-    if (downloadStatus.value[book.bookId]?.downloading && !downloadStatus.value[book.bookId]?.paused) {
+/**
+ * 启动一次全新下载（progress 从 0 起）。
+ */
+async function startDownload(book: FavoriteBookInfo, prevProgress: number = 0) {
+    log.info('[Download] startDownload:', book.bookId, book.bookName);
+
+    // 若已有活跃任务（防重复）
+    const cur = downloadStatus.value[book.bookId];
+    if (cur?.downloading && !cur.paused) {
         return;
     }
 
-    const hasPartial = downloadStatus.value[book.bookId]?.hasPartialDownload;
-    const isResume = hasPartial && downloadStatus.value[book.bookId]?.progress > 0;
-    
-    // 设置为下载中，继续下载时保持当前进度
     downloadStatus.value[book.bookId] = {
         downloading: true,
-        downloaded: false,
-        progress: isResume ? downloadStatus.value[book.bookId].progress : 0,
-        hasPartialDownload: hasPartial || false,
-        paused: false
+        paused: false,
+        progress: prevProgress,
     };
 
-    const bookInfo: BookInfo = {
+    try {
+        const result = await downloadBookApi(toBookInfo(book, prevProgress));
+        if (result.success) {
+            popSuccess('下载已开始');
+        } else {
+            // 后端返回 success: false，可能是书籍已在下载中或所有页面已下载
+            // 检查是否所有页面已下载（通过查询下载进度）
+            const progressInfo = await getDownloadProgress(book.bookId);
+            if (progressInfo.exists && progressInfo.totalPage > 0) {
+                const progress = Math.min(100, Math.floor((progressInfo.downloadedPages / progressInfo.totalPage) * 100));
+                downloadStatus.value[book.bookId] = {
+                    downloading: false,
+                    paused: false,
+                    progress,
+                };
+                if (progress >= 100) {
+                    popSuccess('书籍已下载完成');
+                } else {
+                    popErr('书籍可能正在下载中，请稍后重试');
+                }
+            } else {
+                downloadStatus.value[book.bookId] = {
+                    downloading: false,
+                    paused: false,
+                    progress: prevProgress,
+                };
+                popErr('下载失败：无法启动下载任务');
+            }
+        }
+    } catch (e) {
+        downloadStatus.value[book.bookId] = {
+            downloading: false,
+            paused: false,
+            progress: prevProgress,
+        };
+        log.error('[Download] startDownload failed:', book.bookId, e);
+        popErr('下载失败: ' + (typeof e === 'string' ? e : JSON.stringify(e)));
+    }
+}
+
+/** 把收藏书信息转成下载接口需要的 BookInfo */
+function toBookInfo(book: FavoriteBookInfo, prevProgress: number): BookInfo {
+    return {
         bookId: book.bookId,
         bookName: book.bookName,
         totalPage: book.totalPage,
         coverPic: book.coverPic,
         bigCoverPic: book.bigCoverPic,
-        tagId: book.tagId
-    };
-
-    try {
-        if (hasPartial) {
-            await resumeBookDownload(book.bookId);
-        } else {
-            await downloadBookApi(bookInfo);
-        }
-        // 下载已启动，进度通过 onDownloadProgress 回调更新
-        popSuccess('下载已开始');
-    } catch (error) {
-        const prevProgress = downloadStatus.value[book.bookId]?.progress || 0;
-        downloadStatus.value[book.bookId] = {
-            downloading: false,
-            downloaded: false,
-            progress: prevProgress,
-            hasPartialDownload: hasPartial || false,
-            paused: false
-        };
-        // 后端 reject 回来的是具体错误字符串，原样弹出便于定位
-        popErr('下载失败: ' + (typeof error === 'string' ? error : JSON.stringify(error)));
-    }
+        tagId: book.tagId,
+    } as BookInfo;
 }
 
-onDownloadProgress((progress) => {
-    console.log('[Download] onDownloadProgress callback:', progress);
-    if (downloadStatus.value[progress.bookId]) {
-        const percentage = progress.totalPage > 0
-            ? Math.floor((progress.downloadedPages / progress.totalPage) * 100)
-            : 0;
-        downloadStatus.value[progress.bookId].progress = percentage;
+const unlistenFns: (() => void)[] = [];
 
-        // 下载完成
-        if (progress.downloadedPages >= progress.totalPage) {
-            downloadStatus.value[progress.bookId] = {
-                downloading: false,
-                downloaded: true,
-                progress: 100,
-                hasPartialDownload: false,
-                paused: false
-            };
-            popSuccess('下载完成');
-        }
+onDownloadProgress((progress) => {
+    log.debug('[Download] onDownloadProgress:', progress);
+    if (!downloadStatus.value[progress.bookId]) {
+        downloadStatus.value[progress.bookId] = {
+            downloading: false,
+            paused: false,
+            progress: 0,
+        };
     }
+
+    const percentage = progress.totalPage > 0
+        ? Math.min(100, Math.floor((progress.downloadedPages / progress.totalPage) * 100))
+        : 0;
+
+    // 整体替换整个对象以保证 Vue 3 响应式正确触发视图更新
+    const current = downloadStatus.value[progress.bookId];
+    downloadStatus.value[progress.bookId] = {
+        downloading: current.downloading,
+        paused: current.paused,
+        progress: percentage,
+    };
+
+    // 下载完成：清理任务状态，标记为已完成（progress=100 -> viewMode='done'）
+    if (progress.downloadedPages >= progress.totalPage) {
+        downloadStatus.value[progress.bookId] = {
+            downloading: false,
+            paused: false,
+            progress: 100,
+        };
+        popSuccess('下载完成');
+    }
+}).then(unlisten => {
+    unlistenFns.push(unlisten);
 });
 
 // 后端检测到 cookie 失效（HTTP 401/403 或业务 code=100）时通知前端重登
 onDownloadSessionExpired((payload) => {
-    console.warn('[Download] session expired:', payload);
+    log.warn('[Download] session expired:', payload);
     const prevProgress = downloadStatus.value[payload.bookId]?.progress || 0;
     downloadStatus.value[payload.bookId] = {
         downloading: false,
-        downloaded: false,
+        paused: false,
         progress: prevProgress,
-        hasPartialDownload: true,
-        paused: false
     };
     popErr('登录已失效，请重新登录后再下载');
     router.push({ name: 'Login' });
+}).then(unlisten => {
+    unlistenFns.push(unlisten);
 });
 
 
@@ -444,7 +570,7 @@ function toBookPage(book: FavoriteBookInfo) {
 
 function jumpToPage(pageIdx: number) {
 
-    console.log(`pageIdx = ${pageIdx}, totalPage = ${totalPage.value}, page = ${page.value}`);
+    log.debug(`pageIdx = ${pageIdx}, totalPage = ${totalPage.value}, page = ${page.value}`);
 
     if (pageIdx < 1 || (totalPage.value != 0 && pageIdx > totalPage.value)) {
         return;
@@ -488,7 +614,7 @@ function readCost(minutes: number): string {
 }
 
 function enter() {
-    console.log("--- FavoriteBook Page Enter ----");
+    log.debug("--- FavoriteBook Page Enter ----");
 
     hotkeys('left, a, s, page up', 'favorite', () => jumpToPage(page.value - 1));
     hotkeys('right, f, d, page down', 'favorite', () => jumpToPage(page.value + 1));
@@ -509,7 +635,7 @@ function enter() {
 }
 
 function leave() {
-    console.log("--- FavoriteBook Page Leave ----");
+    log.debug("--- FavoriteBook Page Leave ----");
     hotkeys.deleteScope('favorite');
 }
 

@@ -2,6 +2,7 @@ import {PageItem} from "../../model/pageModel";
 import {getBookPageList} from "../../apis/book";
 import {preloadImage} from "../../service/imagePreLoad";
 import {getLocalPage} from "../../apis/bookDownload";
+import log from "../../utils/log";
 
 enum PageCacheLoad {
     // 不操作缓存
@@ -202,6 +203,7 @@ export class PageCache {
         startPage = Math.max(startPage, PageCache.FIRST_PAGE);
 
         let pages: PageItem[];
+        log.info(`[PageCache] loadPages: bookId=${this.bookId}, useLocal=${this.useLocal}, start=${startPage}, size=${pageSize}`);
         
         if (this.useLocal) {
             // 本地模式：只从本地读取，不请求网络
@@ -217,6 +219,7 @@ export class PageCache {
         } else {
             pages = await getBookPageList(this.bookId, startPage, pageSize);
         }
+        log.info(`[PageCache] loadPages result: ${pages.length} pages`);
         
         if (loadType == PageCacheLoad.RESET) {
             this.cacheList = pages;

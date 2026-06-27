@@ -15,16 +15,24 @@ export function ipcSend(channel: string): void {
 
 /**
  * 监听 Tauri 后端的事件
+ * 返回取消监听的函数，调用方需要妥善管理生命周期
  */
-export function ipcOn(channel: string, listener: (...args: any[]) => void): void {
+export function ipcOn(channel: string, listener: (...args: any[]) => void): Promise<() => void> {
     log.debug('[ipcOn] registering listener for:', channel);
-    listen(channel, (event) => {
+    return listen(channel, (event) => {
         log.debug('[ipcOn] event:', channel, event.payload);
         listener(event.payload);
-    }).then(() => {
+    }).then((unlisten) => {
         log.debug('[ipcOn] listener registered for:', channel);
+        return () => {
+            log.debug('[ipcOn] unlistening for:', channel);
+            unlisten();
+        };
     }).catch(err => {
         log.error('[ipcOn] register failed:', channel, err);
+        return () => {
+            // register failed, nothing to clean up
+        };
     });
 }
 

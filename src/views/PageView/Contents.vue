@@ -52,17 +52,20 @@
 </template>
 
 <script setup lang="ts">
-import {nextTick, onBeforeUnmount, onMounted, ref, Ref, useTemplateRef} from "vue";
+import {nextTick, onBeforeUnmount, onMounted, ref, Ref, useTemplateRef, watch} from "vue";
 import {ContentsItem} from "../../model/contentsModel";
 import {getContents} from "../../apis/book";
+import {getLocalContents} from "../../apis/bookDownload";
 import {getLocalStorageBoolean, setLocalStorage} from "../../utils/localStorageUtil";
+import log from "../../utils/log";
 import {Expand, Fold} from '@element-plus/icons-vue';
 import hotkeys from "hotkeys-js";
 import {binarySearch} from "../../utils/util";
 
 const props = defineProps<{
     bookId: number,
-    bookName: string
+    bookName: string,
+    isLocalBook: boolean,
 }>();
 
 const emit = defineEmits<{
@@ -80,10 +83,32 @@ const contents = ref(new Array<ContentsItem>());
 const showContents = ref(getLocalStorageBoolean(contentsStateKey, true));
 notifyShow();
 
-// 获取目录数据
-getContents(props.bookId).then((contentList: ContentsItem[]) => {
-    contents.value = contentList;
-});
+// 获取目录数据：本地书籍走本地 DB，远程书籍走网络 API
+// 用 watch 监听 isLocalBook，确保异步更新后能重新加载
+watch(
+    () => props.isLocalBook,
+    (isLocal) => {
+        log.info('[Contents] loading, isLocal=', isLocal, 'bookId=', props.bookId);
+        if (isLocal) {
+            getLocalContents(props.bookId).then((contentList) => {
+                log.info('[Contents] local contents loaded:', contentList.length);
+                contents.value = contentList;
+            }).catch((e) => {
+                log.error('[Contents] local contents error:', e);
+                contents.value = [];
+            });
+        } else {
+            getContents(props.bookId).then((contentList: ContentsItem[]) => {
+                log.info('[Contents] remote contents loaded:', contentList.length);
+                contents.value = contentList;
+            }).catch((e) => {
+                log.warn('[Contents] remote contents error:', e);
+                contents.value = [];
+            });
+        }
+    },
+    { immediate: true }
+);
 
 function notifyShow() {
     if (showContents.value) {

@@ -31,6 +31,7 @@ export default {
     bookDelete: 'book_delete',
     bookSavePage: 'book_save_page',
     bookGetLocalImage: 'book_get_local_image',
+    bookGetLocalContents: 'book_get_local_contents',
 
     // 下载管理
     bookGetAllList: 'book_get_all_list',

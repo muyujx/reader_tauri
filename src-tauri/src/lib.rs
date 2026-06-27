@@ -14,8 +14,8 @@ use config::{
 };
 use db::{
     book_delete, book_get_all_list, book_get_download_progress, book_get_info,
-    book_get_list_by_page, book_get_local_image, book_get_page, book_is_downloaded, book_save_page,
-    book_update_read_progress, init_db, set_cache_dir, DbState,
+    book_get_list_by_page, book_get_local_contents, book_get_local_image, book_get_page,
+    book_is_downloaded, book_save_page, book_update_read_progress, init_db, set_cache_dir, DbState,
 };
 use download::{
     book_cancel_download, book_download, book_finish_download, book_get_pending_pages,
@@ -235,6 +235,7 @@ pub fn run() {
             book_save_page,
             set_cache_dir,
             book_get_local_image,
+            book_get_local_contents,
             get_start_win_size,
             set_start_win_size,
             get_root_cache_dir,

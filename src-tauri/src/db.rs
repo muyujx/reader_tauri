@@ -54,6 +54,10 @@ pub struct BookInfo {
     pub last_read_time: Option<i64>,
     pub reading_cost: Option<i64>,
     pub create_time: Option<i64>,
+    // 已下载完成的页数（book_page.status=1 的行数），供下载列表页展示下载进度
+    pub downloaded_pages: Option<i64>,
+    // 下载完成百分比（0~100 整数），前端进度条直接消费
+    pub progress: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -71,6 +75,14 @@ pub struct BookPage {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ContentsItem {
+    pub level: i64,
+    pub start_page: i64,
+    pub label: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub exists: bool,
     pub downloaded_pages: i64,
@@ -86,7 +98,7 @@ pub struct PageItem {
     pub top_chapter: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadResult {
     pub success: bool,
@@ -153,6 +165,25 @@ pub fn init_db(app: &AppHandle) -> Result<Connection, String> {
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_book_page_idx ON book_page(book_id, page_idx)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS book_contents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            book_id INTEGER NOT NULL,
+            level INTEGER NOT NULL,
+            start_page INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            UNIQUE(book_id, start_page)
+        )",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_book_contents_book_id ON book_contents(book_id)",
         [],
     )
     .map_err(|e| e.to_string())?;
@@ -247,14 +278,25 @@ pub fn book_get_info(db: State<DbState>, bookId: i64) -> Result<Option<BookInfo>
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
     let result = conn.query_row(
-        "SELECT book_id, book_name, total_page, cover_pic, big_cover_pic, tag_id, read_page, last_read_time, reading_cost, create_time 
-         FROM book WHERE book_id = ?1",
+        // 顺带统计已下载完成的页数（status=1），供阅读页判断是否已下载完整。
+        "SELECT b.book_id, b.book_name, b.total_page, b.cover_pic, b.big_cover_pic, b.tag_id,
+                b.read_page, b.last_read_time, b.reading_cost, b.create_time,
+                (SELECT COUNT(*) FROM book_page p WHERE p.book_id = b.book_id AND p.status = 1) AS downloaded_pages
+         FROM book b WHERE b.book_id = ?1",
         params![bookId],
         |row| {
+            let total_page: i64 = row.get(2)?;
+            let downloaded_pages: i64 = row.get::<_, i64>(10)?;
+            // 进度百分比：0~100 整数，total_page<=0 时记 0 避免除零
+            let progress = if total_page > 0 {
+                (downloaded_pages * 100) / total_page
+            } else {
+                0
+            };
             Ok(BookInfo {
                 book_id: row.get(0)?,
                 book_name: row.get(1)?,
-                total_page: row.get(2)?,
+                total_page,
                 cover_pic: row.get(3)?,
                 big_cover_pic: row.get(4)?,
                 tag_id: row.get(5)?,
@@ -262,6 +304,8 @@ pub fn book_get_info(db: State<DbState>, bookId: i64) -> Result<Option<BookInfo>
                 last_read_time: row.get(7)?,
                 reading_cost: row.get(8)?,
                 create_time: row.get(9)?,
+                downloaded_pages: Some(downloaded_pages),
+                progress: Some(progress),
             })
         },
     );
@@ -289,7 +333,7 @@ pub fn book_is_downloaded(db: State<DbState>, bookId: i64) -> Result<bool, Strin
 }
 
 #[tauri::command]
-pub fn book_delete(db: State<DbState>, bookId: i64) -> Result<bool, String> {
+pub fn book_delete(db: State<DbState>, bookId: i64) -> Result<DownloadResult, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -299,7 +343,10 @@ pub fn book_delete(db: State<DbState>, bookId: i64) -> Result<bool, String> {
         .map_err(|e| e.to_string())?;
 
     info!("[DB] Book deleted: bookId={}", bookId);
-    Ok(true)
+    Ok(DownloadResult {
+        success: true,
+        book_id: bookId,
+    })
 }
 
 #[tauri::command]
@@ -308,16 +355,29 @@ pub fn book_get_all_list(db: State<DbState>) -> Result<Vec<BookInfo>, String> {
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
     let mut stmt = conn.prepare(
-        "SELECT book_id, book_name, total_page, cover_pic, big_cover_pic, tag_id, read_page, last_read_time, reading_cost, create_time 
-         FROM book ORDER BY create_time DESC"
+        // 关联子查询统计已下载完成的页数（status=1），一次性返回 downloaded_pages，
+        // 前端下载列表页据此显示下载进度，无需再发起额外请求。
+        "SELECT b.book_id, b.book_name, b.total_page, b.cover_pic, b.big_cover_pic, b.tag_id,
+                b.read_page, b.last_read_time, b.reading_cost, b.create_time,
+                (SELECT COUNT(*) FROM book_page p WHERE p.book_id = b.book_id AND p.status = 1) AS downloaded_pages
+         FROM book b
+         ORDER BY b.create_time DESC"
     ).map_err(|e| e.to_string())?;
 
     let books = stmt
         .query_map([], |row| {
+            let total_page: i64 = row.get(2)?;
+            let downloaded_pages: i64 = row.get::<_, i64>(10)?;
+            // 进度百分比：0~100 整数，total_page<=0 时记 0 避免除零
+            let progress = if total_page > 0 {
+                (downloaded_pages * 100) / total_page
+            } else {
+                0
+            };
             Ok(BookInfo {
                 book_id: row.get(0)?,
                 book_name: row.get(1)?,
-                total_page: row.get(2)?,
+                total_page,
                 cover_pic: row.get(3)?,
                 big_cover_pic: row.get(4)?,
                 tag_id: row.get(5)?,
@@ -325,6 +385,8 @@ pub fn book_get_all_list(db: State<DbState>) -> Result<Vec<BookInfo>, String> {
                 last_read_time: row.get(7)?,
                 reading_cost: row.get(8)?,
                 create_time: row.get(9)?,
+                downloaded_pages: Some(downloaded_pages),
+                progress: Some(progress),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -355,16 +417,28 @@ pub fn book_get_list_by_page(
     let offset = (page - 1) * pageSize;
 
     let mut stmt = conn.prepare(
-        "SELECT book_id, book_name, total_page, cover_pic, big_cover_pic, tag_id, read_page, last_read_time, reading_cost, create_time 
-         FROM book ORDER BY create_time DESC LIMIT ?1 OFFSET ?2"
+        // 关联子查询统计已下载完成的页数（status=1），分页查询同时拿到 downloaded_pages。
+        "SELECT b.book_id, b.book_name, b.total_page, b.cover_pic, b.big_cover_pic, b.tag_id,
+                b.read_page, b.last_read_time, b.reading_cost, b.create_time,
+                (SELECT COUNT(*) FROM book_page p WHERE p.book_id = b.book_id AND p.status = 1) AS downloaded_pages
+         FROM book b
+         ORDER BY b.create_time DESC LIMIT ?1 OFFSET ?2"
     ).map_err(|e| e.to_string())?;
 
     let books = stmt
         .query_map(params![pageSize, offset], |row| {
+            let total_page: i64 = row.get(2)?;
+            let downloaded_pages: i64 = row.get::<_, i64>(10)?;
+            // 进度百分比：0~100 整数，total_page<=0 时记 0 避免除零
+            let progress = if total_page > 0 {
+                (downloaded_pages * 100) / total_page
+            } else {
+                0
+            };
             Ok(BookInfo {
                 book_id: row.get(0)?,
                 book_name: row.get(1)?,
-                total_page: row.get(2)?,
+                total_page,
                 cover_pic: row.get(3)?,
                 big_cover_pic: row.get(4)?,
                 tag_id: row.get(5)?,
@@ -372,6 +446,8 @@ pub fn book_get_list_by_page(
                 last_read_time: row.get(7)?,
                 reading_cost: row.get(8)?,
                 create_time: row.get(9)?,
+                downloaded_pages: Some(downloaded_pages),
+                progress: Some(progress),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -398,7 +474,7 @@ pub fn book_update_read_progress(
     bookId: i64,
     readPage: i64,
     readingCost: i64,
-) -> Result<bool, String> {
+) -> Result<DownloadResult, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -414,7 +490,10 @@ pub fn book_update_read_progress(
         "[DB] Read progress updated: bookId={}, page={}, cost={}",
         bookId, readPage, readingCost
     );
-    Ok(true)
+    Ok(DownloadResult {
+        success: true,
+        book_id: bookId,
+    })
 }
 
 #[tauri::command]
@@ -425,7 +504,7 @@ pub fn book_save_page(
     content: String,
     title: String,
     topChapter: i64,
-) -> Result<bool, String> {
+) -> Result<DownloadResult, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -437,7 +516,10 @@ pub fn book_save_page(
         params![bookId, pageIdx, content, title, topChapter, now],
     ).map_err(|e| e.to_string())?;
 
-    Ok(true)
+    Ok(DownloadResult {
+        success: true,
+        book_id: bookId,
+    })
 }
 
 #[tauri::command]
@@ -528,4 +610,31 @@ fn base64_encode(data: &[u8]) -> String {
     }
 
     result
+}
+
+#[tauri::command]
+pub fn book_get_local_contents(
+    db: State<DbState>,
+    bookId: i64,
+) -> Result<Vec<ContentsItem>, String> {
+    let guard = db.0.lock().map_err(|e| e.to_string())?;
+    let conn = guard.as_ref().ok_or("Database not initialized")?;
+
+    let mut stmt = conn
+        .prepare("SELECT level, start_page, label FROM book_contents WHERE book_id = ?1 ORDER BY start_page")
+        .map_err(|e| e.to_string())?;
+
+    let items = stmt
+        .query_map(params![bookId], |row| {
+            Ok(ContentsItem {
+                level: row.get(0)?,
+                start_page: row.get(1)?,
+                label: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(items)
 }

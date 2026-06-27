@@ -5,6 +5,7 @@
     <Contents ref="contents"
               :book-id="bookId"
               :book-name="bookInfo.bookName"
+              :is-local-book="isLocalBook"
               @skip-chapter="getPageHtml"
               @skip-cover-page="getPageHtml(PageCache.COVER_PAGE)"
               @open="showContents = true"
@@ -129,7 +130,8 @@ import ViewFooterBar from "../../components/ViewFooterBar.vue";
 import {getRemotePage} from "../../apis/userRemotePage";
 import {addHost} from "../../apis/request.ts";
 import {recordReadingProgress, updateReadProgress} from "./pageView.ts";
-import {getDownloadProgress} from "../../apis/bookDownload.ts";
+import {getDownloadProgress, getLocalBookInfo as getLocalBookInfoApi} from "../../apis/bookDownload.ts";
+import log from "../../utils/log";
 
 // 是否显示底部时间
 const showClock = ref(false);
@@ -194,25 +196,78 @@ bookId = parseInt(bookIdStr);
 // 页面缓存
 let pageCache: PageCache | null = null;
 
-// 获取书籍信息并初始化
-getBookInfo(bookId).then(async (resBookInfo: BookInfo) => {
-  bookInfo.value = resBookInfo;
-  // 设置一下 bookId, 接口没有返回 bookId
-  bookInfo.value.bookId = bookId;
-  // 将 totalPage
-  totalPage.value = resBookInfo.totalPage;
-  // 检查书籍是否已下载（只要在 book 表中存在就使用本地模式）
-  const downloadInfo = await getDownloadProgress(bookId);
-  const useLocal = downloadInfo.exists;
-  isLocalBook.value = useLocal;
+// 获取书籍信息并初始化：先检查是否已下载，已下载完全则走本地数据
+(async function initBook() {
+  log.info('[PageView] initBook: bookId=', bookId);
 
-  // 创建页面缓存，从本地读取已下载的页面
-  pageCache = new PageCache(bookId, useLocal);
+  // 优先检查本地下载状态
+  const downloadInfo = await getDownloadProgress(bookId);
+  const downloadedPages = downloadInfo.exists ? downloadInfo.downloadedPages : 0;
+  const useLocal = downloadInfo.exists && downloadedPages >= downloadInfo.totalPage;
+  isLocalBook.value = useLocal;
+  log.info('[PageView] downloadInfo:', JSON.stringify(downloadInfo), 'useLocal=', useLocal);
+
+  if (useLocal) {
+    // 完全下载的书籍从本地 DB 读取信息，离线也能用
+    log.info('[PageView] using LOCAL mode');
+    const localInfo = await getLocalBookInfoApi(bookId);
+    log.info('[PageView] localInfo:', JSON.stringify(localInfo));
+    if (localInfo) {
+      bookInfo.value = {
+        bookName: localInfo.bookName,
+        totalPage: localInfo.totalPage,
+        bigCoverPic: localInfo.bigCoverPic,
+        bookId: localInfo.bookId,
+        coverPic: localInfo.coverPic,
+        tagId: localInfo.tagId,
+        favorite: false,
+      };
+      totalPage.value = localInfo.totalPage;
+      log.info('[PageView] bookInfo from local:', JSON.stringify(bookInfo.value));
+    } else {
+      log.warn('[PageView] localInfo is null, book may not be fully downloaded');
+    }
+  } else {
+    // 未下载或部分下载，走网络 API
+    log.info('[PageView] using NETWORK mode');
+    try {
+      const resBookInfo: BookInfo = await getBookInfo(bookId);
+      bookInfo.value = resBookInfo;
+      bookInfo.value.bookId = bookId;
+      totalPage.value = resBookInfo.totalPage;
+      log.info('[PageView] bookInfo from network:', JSON.stringify(resBookInfo));
+    } catch (e) {
+      log.warn('[PageView] network failed, falling back to local:', e);
+      // 离线时网络不可用，尝试本地数据兜底
+      const localInfo = await getLocalBookInfoApi(bookId);
+      log.info('[PageView] fallback localInfo:', JSON.stringify(localInfo));
+      if (localInfo) {
+        bookInfo.value = {
+          bookName: localInfo.bookName,
+          totalPage: localInfo.totalPage,
+          bigCoverPic: localInfo.bigCoverPic,
+          bookId: localInfo.bookId,
+          coverPic: localInfo.coverPic,
+          tagId: localInfo.tagId,
+          favorite: false,
+        };
+        totalPage.value = localInfo.totalPage;
+        isLocalBook.value = true;
+        log.info('[PageView] fallback bookInfo from local:', JSON.stringify(bookInfo.value));
+      } else {
+        log.error('[PageView] fallback failed: no local info');
+      }
+    }
+  }
+
+  // 创建页面缓存
+  log.info('[PageView] creating pageCache: bookId=', bookId, 'isLocal=', isLocalBook.value, 'totalPage=', totalPage.value);
+  pageCache = new PageCache(bookId, isLocalBook.value);
   pageCache.setTotalPage(totalPage.value);
-  
+
   // 初始化页面
   initPage(bookId);
-});
+})();
 
 // 快速选择页面中的图片
 function imageSelect(e: any) {
@@ -320,6 +375,13 @@ recordReadingProgress(bookId, curPageItem, pageConfirm, isLocalBook.value);
 
 async function initPage(bookId: number) {
   let localPage = getLocalStorageInt(bookId, PageCache.COVER_PAGE);
+
+  // 本地书籍不请求远程进度（离线也能用）
+  if (isLocalBook.value) {
+    getPageHtml(localPage);
+    return;
+  }
+
   // 获取服务端书页进度
   let remotePage = await getRemotePage(bookId);
 
