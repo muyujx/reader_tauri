@@ -1,6 +1,6 @@
 <template>
 
-    <div class="favorite">
+    <div class="download">
 
         <div class="empty-notify"
              :class="{
@@ -33,43 +33,46 @@
 
                 <div class="detail">
 
-                    <div class="delete-download"
-                         @click="deleteBook(book.bookId)"
-                    >
-                        <el-icon>
-                            <Delete/>
-                        </el-icon>
+                    <div class="detail-content">
+                        <p class="name">{{ book.bookName }}</p>
 
-                    </div>
+                        <!-- 阅读进度（如果有阅读记录） -->
+                        <div class="item" v-if="book.readPage > 0">
+                            <p>阅读进度:</p>
+                            <div class="detail_item_content">
+                                <p>{{ book.readPage }} / {{ book.totalPage }} 页</p>
+                                <el-progress
+                                    :text-inside="true"
+                                    :stroke-width="15"
+                                    :format="num => `${num == 0 ? '0' : num.toFixed(2)}%`"
+                                    :percentage="book.readPage / book.totalPage * 100"
+                                />
+                            </div>
+                        </div>
 
-                    <p class="name">{{ book.bookName }}</p>
+                        <div class="item" v-if="book.readPage > 0">
+                            <p>阅读时间:</p>
+                            <p>{{ readCost(book.readingCost) }}</p>
+                        </div>
+                        <div class="item" v-if="book.readPage > 0">
+                            <p>上次阅读:</p>
+                            <p>{{ book.lastRead == 0 ? '未阅读' : getLastRead(book.lastRead) }}</p>
+                        </div>
 
-                    <!-- 阅读进度（如果有阅读记录） -->
-                    <div class="item" v-if="book.readPage > 0">
-                        <p>阅读进度:</p>
-                        <div class="detail_item_content">
-                            <p>{{ book.readPage }} / {{ book.totalPage }} 页</p>
-                            <el-progress
-                                :text-inside="true"
-                                :stroke-width="15"
-                                :format="num => `${num == 0 ? '0' : num.toFixed(2)}%`"
-                                :percentage="book.readPage / book.totalPage * 100"
-                            />
+                        <div class="item">
+                            <p>下载进度:</p>
+                            <p>{{ book.progress }}%</p>
                         </div>
                     </div>
 
-                    <div class="item" v-if="book.readPage > 0">
-                        <p>阅读时间:</p>
-                        <p>{{ readCost(book.readingCost) }}</p>
-                    </div>
-                    <div class="item" v-if="book.readPage > 0">
-                        <p>上次阅读:</p>
-                        <p>{{ book.lastRead == 0 ? '未阅读' : getLastRead(book.lastRead) }}</p>
-                    </div>
-
-                    <div class="item">
-                        <p>下载进度:</p>
-                        <p>{{ book.progress }}%</p>
+                    <div class="action-buttons">
+                        <div class="delete-download"
+                             @click="deleteBook(book.bookId)"
+                        >
+                            <el-icon>
+                                <Delete/>
+                            </el-icon>
+                        </div>
                     </div>
 
                 </div>

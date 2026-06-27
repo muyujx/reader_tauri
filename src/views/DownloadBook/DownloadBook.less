@@ -7,6 +7,7 @@
   flex-direction: column;
   justify-content: space-around;
   align-items: center;
+  padding-top: 30px;
   padding-bottom: 30px;
   box-sizing: border-box;
 }
@@ -17,11 +18,14 @@
   height: 630px;
   max-height: 80vh;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(0, 400px));
-  grid-template-rows: repeat(auto-fill, 200px);
+  grid-template-columns: repeat(auto-fill, 380px);
+  grid-auto-rows: 190px;
   grid-row-gap: 20px;
-  place-items: center;
+  grid-column-gap: 20px;
+  justify-items: center;
   justify-content: center;
+  align-content: start;
+  padding-top: 20px;
 
   box-sizing: border-box;
   user-select: none;
@@ -32,25 +36,89 @@
 .detail {
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: start;
-  align-items: start;
-  width: 170px;
+  align-items: stretch;
+  width: 240px;
   height: 100%;
-  position: relative;
+
+  .detail-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 200px;
+    padding: 10px 0;
+    box-sizing: border-box;
+
+    .name {
+      width: 180px;
+      min-height: 40px;
+      margin: 0;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-wrap: wrap;
+    }
+
+    .item + .item {
+      margin-top: 6px;
+    }
+
+    .item {
+      display: flex;
+      font-size: 12px;
+
+      p:first-child {
+        width: 60px;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .detail_item_content {
+        display: flex;
+        flex-direction: column;
+
+        p {
+          width: 130px;
+        }
+
+        .el-progress {
+          margin-top: 4px;
+          margin-bottom: 4px;
+
+          :deep(.el-progress-bar__innerText) {
+            color: var(--foreground);
+          }
+        }
+      }
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px 5px 10px 0;
+    box-sizing: border-box;
+    height: 100%;
+  }
 
   .delete-download {
-    position: absolute;
-    bottom: -3px;
-    right: -3px;
-
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 40px;
+    width: 30px;
     height: 30px;
-
-    border-radius: 10px 0 0 0;
+    border-radius: 10px;
 
     &:hover {
       color: var(--danger);
@@ -58,63 +126,13 @@
 
     .el-icon {
       color: var(--danger);
-      font-size: 25px;
+      font-size: 20px;
     }
-  }
-
-  .item + .item {
-    margin-top: 3px;
-  }
-
-  .item {
-    display: flex;
-    font-size: 12px;
-    margin-top: 1px;
-
-    p:first-child {
-      width: 60px;
-    }
-
-    p {
-      margin: 0;
-    }
-
-    .detail_item_content {
-      display: flex;
-      flex-direction: column;
-
-      p {
-        width: 100px;
-      }
-
-      .el-progress {
-        margin-top: 5px;
-        margin-bottom: 5px;
-
-        :deep(.el-progress-bar__innerText) {
-          color: var(--foreground);
-        }
-      }
-    }
-  }
-
-  .name {
-    width: 150px;
-    min-height: 70px;
-    margin-top: 0;
-    margin-bottom: 0;
-    font-size: 15px;
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    text-wrap: wrap;
   }
 }
 
 .book {
-  width: 300px;
+  width: 380px;
   height: 190px;
   border-radius: 10px;
   box-sizing: border-box;
@@ -123,7 +141,7 @@
 
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
 
   border: 3px solid transparent;
   transition: all ease 300ms;
@@ -137,6 +155,8 @@
     position: relative;
     border: 3px solid transparent;
     transition: all ease 0.5s;
+    align-self: center;
+
 
     img {
       width: 100%;
@@ -150,6 +170,7 @@
     &:active {
       transform: scale(0.5);
     }
+
   }
 }
 
@@ -178,49 +199,171 @@
   }
 }
 
-// 移动端适配 - 统一使用 90vw 宽度
+// 平板适配 - 800px 及以下
 @media screen and (max-width: 800px) {
   .download {
-    padding-bottom: 20px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    box-sizing: border-box;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .books {
-    max-width: 90vw;
-    height: auto;
-    max-height: 80vh;
-    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 380px);
+    grid-row-gap: 20px;
+    place-items: center;
+    justify-content: center;
+    align-content: start;
+    box-sizing: border-box;
+    user-select: none;
+    overflow-y: auto;
   }
 
+  .el-pagination {
+    flex-shrink: 0;
+    padding: 0;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+
+    button, li {
+      min-width: 24px;
+      height: 24px;
+      margin: 0 2px;
+      border-radius: 4px;
+      font-size: 10px;
+      padding: 0 2px;
+    }
+  }
+
+  .empty-notify {
+    .el-icon {
+      font-size: 50px;
+    }
+
+    p {
+      font-size: 12px;
+    }
+  }
+}
+
+// 手机端适配
+@media screen and (max-width: 414px) {
+  .download {
+    padding: 8px;
+    padding-bottom: 8px;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .books {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 270px);
+    grid-row-gap: 12px;
+    place-items: center;
+    justify-content: center;
+    align-content: start;
+    box-sizing: border-box;
+    user-select: none;
+    overflow-y: auto;
+  }
+
+  // 缩小卡片尺寸
   .book {
-    width: 90vw;
-    max-width: 300px;
-    height: 160px;
-    cursor: pointer;
+    width: 270px;
+    height: 140px;
 
     .cover {
-      width: 90px;
-      height: 130px;
+      width: 80px;
+      height: 115px;
+      align-self: center;
+    }
+
+    .detail {
+      width: 180px;
+
+      .name {
+        width: 140px;
+        min-height: 30px;
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+
+      .item {
+        font-size: 10px;
+
+        p:first-child {
+          width: 50px;
+        }
+
+        .detail_item_content {
+          p {
+            width: 90px;
+          }
+
+          .el-progress {
+            margin-top: 2px;
+            margin-bottom: 2px;
+          }
+        }
+      }
+
+      .item + .item {
+        margin-top: 4px;
+      }
+
+      .delete-download {
+        width: 30px;
+        height: 24px;
+
+        .el-icon {
+          font-size: 18px;
+        }
+      }
     }
   }
 
-  .detail {
-    width: 140px;
+  .el-pagination {
+    flex-shrink: 0;
+    padding: 0;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
 
-    .name {
-      width: 120px;
-      font-size: 13px;
+    button, li {
+      min-width: 22px;
+      height: 22px;
+      margin: 0 1px;
+      border-radius: 3px;
+      font-size: 9px;
+      padding: 0 1px;
+    }
+  }
+
+  .empty-notify {
+    .el-icon {
+      font-size: 40px;
     }
 
-    .item {
-      font-size: 10px;
-
-      p:first-child {
-        width: 45px;
-      }
-
-      .detail_item_content p {
-        width: 80px;
-      }
+    p {
+      font-size: 11px;
     }
   }
 }
