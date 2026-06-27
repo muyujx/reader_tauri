@@ -959,6 +959,7 @@ fn extract_image_urls(html: &str) -> Vec<String> {
             break;
         }
     }
+    info!("[Download] extract_image_urls: found {} image URLs: {:?}", urls.len(), urls);
     urls
 }
 
@@ -1099,11 +1100,16 @@ fn mark_image_done(app: &AppHandle, book_id: i64, image_url: &str, local_path: &
     };
 
     let now = chrono::Utc::now().timestamp();
+    let local_path_str = local_path.to_string_lossy().to_string();
+    info!(
+        "[Download] mark_image_done: bookId={}, image_url='{}', local_path='{}'",
+        book_id, image_url, local_path_str
+    );
     if let Err(e) = conn.execute(
         "UPDATE book_image SET status = 1, local_path = ?1, create_time = ?2
          WHERE book_id = ?3 AND image_url = ?4",
         rusqlite::params![
-            local_path.to_string_lossy().to_string(),
+            local_path_str,
             now,
             book_id,
             image_url

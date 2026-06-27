@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use log::info;
+use log::{info, warn};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -294,9 +294,36 @@ pub fn book_get_page(
     match result {
         Ok(mut item) => {
             if useLocalImages.unwrap_or(false) {
+                info!(
+                    "[DB] book_get_page: useLocalImages=true, bookId={}, page={}, content_len={}",
+                    bookId, page, item.content.len()
+                );
                 let image_map = get_local_image_map(conn, bookId)?;
+                info!(
+                    "[DB] book_get_page: image_map size={}, keys={:?}",
+                    image_map.len(),
+                    image_map.keys().collect::<Vec<_>>()
+                );
                 if !image_map.is_empty() {
+                    let before = item.content.clone();
                     item.content = replace_image_urls(&item.content, &image_map);
+                    if before == item.content {
+                        warn!(
+                            "[DB] book_get_page: content UNCHANGED after replace_image_urls! bookId={}, page={}, \
+                             image_map_keys={:?}",
+                            bookId, page,
+                            image_map.keys().collect::<Vec<_>>()
+                        );
+                        // 打印 HTML 前 500 字符用于调试
+                        info!("[DB] book_get_page: content preview(500)={}", &item.content[..item.content.len().min(500)]);
+                    } else {
+                        info!("[DB] book_get_page: content changed after replace_image_urls, bookId={}, page={}", bookId, page);
+                    }
+                } else {
+                    warn!(
+                        "[DB] book_get_page: image_map is EMPTY for bookId={}, page={} (no status=1 images in book_image)",
+                        bookId, page
+                    );
                 }
             }
             Ok(Some(item))
@@ -746,6 +773,14 @@ fn get_local_image_map(conn: &Connection, book_id: i64) -> Result<HashMap<String
         .filter_map(|r| r.ok())
         .collect();
 
+    info!(
+        "[DB] get_local_image_map: book_id={}, found {} images with status=1",
+        book_id, map.len()
+    );
+    for (k, v) in &map {
+        info!("[DB] get_local_image_map:   '{}' -> '{}'", k, v);
+    }
+
     Ok(map)
 }
 
@@ -759,23 +794,56 @@ pub fn extract_url_path(image_url: &str) -> String {
     } else {
         image_url
     };
-    trimmed.trim_start_matches('/').to_string()
+    let result = trimmed.trim_start_matches('/').to_string();
+    info!("[DB] extract_url_path: '{}' -> '{}'", image_url, result);
+    result
 }
 
 /// 构建本地图片协议 URL
-/// 格式: localimg://{urlPath}，urlPath 是去掉 /resource 前缀后的路径
+/// Windows: http://localimg.localhost/{urlPath} (WebView2 要求 http://{scheme}.localhost/ 格式)
+/// macOS/Linux: localimg://localhost/{urlPath} (WebKit setURLSchemeHandler 格式)
 fn build_local_image_url(url_path: &str) -> String {
-    format!("localimg://{}", url_path)
+    let path = url_path.trim_start_matches('/');
+    #[cfg(target_os = "windows")]
+    {
+        let url = format!("http://localimg.localhost/{}", path);
+        info!("[DB] build_local_image_url: '{}' -> '{}'", url_path, url);
+        url
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let url = format!("localimg://localhost/{}", path);
+        info!("[DB] build_local_image_url: '{}' -> '{}'", url_path, url);
+        url
+    }
 }
 
 /// 将 HTML 中的远程图片 URL 替换为本地图片协议 URL
 fn replace_image_urls(html: &str, image_map: &HashMap<String, String>) -> String {
     let mut result = html.to_string();
+    let mut replaced_count = 0;
     for image_url in image_map.keys() {
         let url_path = extract_url_path(image_url);
         let local_url = build_local_image_url(&url_path);
+        let before = result.clone();
         result = result.replace(image_url.as_str(), &local_url);
+        if result != before {
+            replaced_count += 1;
+            info!(
+                "[DB] replace_image_urls: '{}' -> '{}' (matched, path='{}')",
+                image_url, local_url, url_path
+            );
+        } else {
+            warn!(
+                "[DB] replace_image_urls: '{}' NOT found in HTML (no match for key in content)",
+                image_url
+            );
+        }
     }
+    info!(
+        "[DB] replace_image_urls: total_keys={}, replaced={}",
+        image_map.len(), replaced_count
+    );
     result
 }
 

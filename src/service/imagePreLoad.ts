@@ -49,7 +49,7 @@ export function preloadBySrc(src: string) {
         return;
     }
 
-    if (src.startsWith('localimg://')) {
+    if (src.startsWith('localimg://') || src.startsWith('http://localimg.localhost/')) {
         return;
     }
 

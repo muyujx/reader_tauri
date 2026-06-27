@@ -206,41 +206,27 @@ pub fn run() {
             info!("[App] Setup completed successfully.");
             Ok(())
         })
-        .register_asynchronous_uri_scheme_protocol("localimg", |ctx, request, responder| {
-            // URL 格式: localimg://{relativePath}
+        .register_uri_scheme_protocol("localimg", |ctx, request| {
             let uri = request.uri().to_string();
             info!("[LocalImg] Received request: {}", uri);
 
-            // 处理不同的 URI 格式
-            let relative_path = if uri.starts_with("localimg:///") {
-                uri.strip_prefix("localimg:///").unwrap_or("")
-            } else if uri.starts_with("localimg://localhost/") {
-                uri.strip_prefix("localimg://localhost/").unwrap_or("")
-            } else if uri.starts_with("localimg://") {
-                uri.strip_prefix("localimg://").unwrap_or("")
-            } else {
-                ""
-            };
-
-            // 去掉开头的 /
-            let relative_path = relative_path.trim_start_matches('/');
+            // 跨平台: 用 path() 获取路径, Windows 下 URI 为 http://localimg.localhost/path,
+            // macOS/Linux 下为 localimg://localhost/path, path() 统一返回 /path
+            let relative_path = request.uri().path().trim_start_matches('/').to_string();
             info!("[LocalImg] Resolved path: {}", relative_path);
 
             if relative_path.is_empty() {
                 warn!("[LocalImg] Empty path for URI: {}", uri);
-                responder.respond(
-                    tauri::http::Response::builder()
-                        .status(400)
-                        .body(Vec::new())
-                        .unwrap(),
-                );
-                return;
+                return tauri::http::Response::builder()
+                    .status(400)
+                    .body(Vec::new())
+                    .unwrap();
             }
 
             // 使用 get_downloaded_images_dir 获取正确的目录
             match db::get_downloaded_images_dir(ctx.app_handle()) {
                 Ok(images_dir) => {
-                    let file_path = images_dir.join(relative_path);
+                    let file_path = images_dir.join(&relative_path);
                     info!("[LocalImg] Looking for file: {:?}", file_path);
                     if file_path.exists() {
                         match std::fs::read(&file_path) {
@@ -258,43 +244,35 @@ pub fn run() {
                                     })
                                     .unwrap_or("image/jpeg");
                                 info!("[LocalImg] Serving file: {:?} ({} bytes)", file_path, data.len());
-                                responder.respond(
-                                    tauri::http::Response::builder()
-                                        .status(200)
-                                        .header("Content-Type", mime)
-                                        .header("Cache-Control", "max-age=31536000, immutable")
-                                        .body(data)
-                                        .unwrap(),
-                                );
+                                tauri::http::Response::builder()
+                                    .status(200)
+                                    .header("Content-Type", mime)
+                                    .header("Cache-Control", "max-age=31536000, immutable")
+                                    .body(data)
+                                    .unwrap()
                             }
                             Err(e) => {
                                 warn!("[LocalImg] Failed to read file: {:?}, err={}", file_path, e);
-                                responder.respond(
-                                    tauri::http::Response::builder()
-                                        .status(500)
-                                        .body(Vec::new())
-                                        .unwrap(),
-                                );
+                                tauri::http::Response::builder()
+                                    .status(500)
+                                    .body(Vec::new())
+                                    .unwrap()
                             }
                         }
                     } else {
                         warn!("[LocalImg] File not found: {:?}", file_path);
-                        responder.respond(
-                            tauri::http::Response::builder()
-                                .status(404)
-                                .body(Vec::new())
-                                .unwrap(),
-                        );
+                        tauri::http::Response::builder()
+                            .status(404)
+                            .body(Vec::new())
+                            .unwrap()
                     }
                 }
                 Err(e) => {
                     warn!("[LocalImg] Failed to get images dir: {}", e);
-                    responder.respond(
-                        tauri::http::Response::builder()
-                            .status(500)
-                            .body(Vec::new())
-                            .unwrap(),
-                    );
+                    tauri::http::Response::builder()
+                        .status(500)
+                        .body(Vec::new())
+                        .unwrap()
                 }
             }
         })
