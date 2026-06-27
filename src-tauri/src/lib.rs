@@ -15,7 +15,9 @@ use config::{
 use db::{
     book_delete, book_get_all_list, book_get_download_progress, book_get_info,
     book_get_list_by_page, book_get_local_contents, book_get_local_image, book_get_page,
-    book_is_downloaded, book_save_page, book_update_read_progress, init_db, set_cache_dir, DbState,
+    book_get_pending_images, book_is_downloaded, book_mark_image_downloaded, book_save_image_record,
+    book_save_page, book_update_read_progress, init_db, set_cache_dir,
+    DbState,
 };
 use download::{
     book_cancel_download, book_download, book_finish_download, book_get_pending_pages,
@@ -203,6 +205,59 @@ pub fn run() {
             info!("[App] Setup completed successfully.");
             Ok(())
         })
+        .register_asynchronous_uri_scheme_protocol("localimg", |ctx, request, responder| {
+            // URL 格式: localimg://{relativePath}
+            let uri = request.uri().to_string();
+            let relative_path = uri.strip_prefix("localimg://").unwrap_or("");
+
+            if relative_path.is_empty() {
+                responder.respond(
+                    tauri::http::Response::builder()
+                        .status(400)
+                        .body(Vec::new())
+                        .unwrap(),
+                );
+                return;
+            }
+
+            if let Ok(app_dir) = ctx.app_handle().path().app_data_dir() {
+                let file_path = app_dir
+                    .join("reader")
+                    .join("downloaded")
+                    .join(relative_path);
+                if file_path.exists() {
+                    if let Ok(data) = std::fs::read(&file_path) {
+                        let mime = file_path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|ext| match ext.to_lowercase().as_str() {
+                                "jpg" | "jpeg" => "image/jpeg",
+                                "png" => "image/png",
+                                "gif" => "image/gif",
+                                "webp" => "image/webp",
+                                "svg" => "image/svg+xml",
+                                _ => "application/octet-stream",
+                            })
+                            .unwrap_or("image/jpeg");
+                        responder.respond(
+                            tauri::http::Response::builder()
+                                .status(200)
+                                .header("Content-Type", mime)
+                                .header("Cache-Control", "max-age=31536000, immutable")
+                                .body(data)
+                                .unwrap(),
+                        );
+                        return;
+                    }
+                }
+            }
+            responder.respond(
+                tauri::http::Response::builder()
+                    .status(404)
+                    .body(Vec::new())
+                    .unwrap(),
+            );
+        })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -236,6 +291,9 @@ pub fn run() {
             set_cache_dir,
             book_get_local_image,
             book_get_local_contents,
+            book_get_pending_images,
+            book_save_image_record,
+            book_mark_image_downloaded,
             get_start_win_size,
             set_start_win_size,
             get_root_cache_dir,

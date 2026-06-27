@@ -3,6 +3,7 @@
 use log::info;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
@@ -188,6 +189,26 @@ pub fn init_db(app: &AppHandle) -> Result<Connection, String> {
     )
     .map_err(|e| e.to_string())?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS book_image (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            book_id INTEGER NOT NULL,
+            image_url TEXT NOT NULL,
+            local_path TEXT,
+            status INTEGER NOT NULL DEFAULT 0,
+            create_time INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            UNIQUE(book_id, image_url)
+        )",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_book_image_book_id ON book_image(book_id)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
     info!("[DB] Database initialized successfully");
     Ok(conn)
 }
@@ -241,9 +262,11 @@ pub fn book_get_download_progress(
 
 #[tauri::command]
 pub fn book_get_page(
+    _app: AppHandle,
     db: State<DbState>,
     bookId: i64,
     page: i64,
+    useLocalImages: Option<bool>,
 ) -> Result<Option<PageItem>, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
@@ -267,13 +290,26 @@ pub fn book_get_page(
     );
 
     match result {
-        Ok(item) => Ok(Some(item)),
+        Ok(mut item) => {
+            if useLocalImages.unwrap_or(false) {
+                let image_map = get_local_image_map(conn, bookId)?;
+                if !image_map.is_empty() {
+                    item.content = replace_image_urls(&item.content, &image_map);
+                }
+            }
+            Ok(Some(item))
+        }
         Err(_) => Ok(None),
     }
 }
 
 #[tauri::command]
-pub fn book_get_info(db: State<DbState>, bookId: i64) -> Result<Option<BookInfo>, String> {
+pub fn book_get_info(
+    _app: AppHandle,
+    db: State<DbState>,
+    bookId: i64,
+    useLocalImages: Option<bool>,
+) -> Result<Option<BookInfo>, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -293,12 +329,24 @@ pub fn book_get_info(db: State<DbState>, bookId: i64) -> Result<Option<BookInfo>
             } else {
                 0
             };
+            let mut cover_pic: Option<String> = row.get(3)?;
+            let mut big_cover_pic: Option<String> = row.get(4)?;
+
+            if useLocalImages.unwrap_or(false) {
+                if let Some(ref cp) = cover_pic {
+                    cover_pic = Some(replace_cover_url(cp));
+                }
+                if let Some(ref bcp) = big_cover_pic {
+                    big_cover_pic = Some(replace_cover_url(bcp));
+                }
+            }
+
             Ok(BookInfo {
                 book_id: row.get(0)?,
                 book_name: row.get(1)?,
                 total_page,
-                cover_pic: row.get(3)?,
-                big_cover_pic: row.get(4)?,
+                cover_pic,
+                big_cover_pic,
                 tag_id: row.get(5)?,
                 read_page: row.get(6)?,
                 last_read_time: row.get(7)?,
@@ -333,13 +381,52 @@ pub fn book_is_downloaded(db: State<DbState>, bookId: i64) -> Result<bool, Strin
 }
 
 #[tauri::command]
-pub fn book_delete(db: State<DbState>, bookId: i64) -> Result<DownloadResult, String> {
+pub fn book_delete(
+    app: AppHandle,
+    db: State<DbState>,
+    bookId: i64,
+) -> Result<DownloadResult, String> {
     let guard = db.0.lock().map_err(|e| e.to_string())?;
     let conn = guard.as_ref().ok_or("Database not initialized")?;
 
     conn.execute("DELETE FROM book_page WHERE book_id = ?1", params![bookId])
         .map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM book WHERE book_id = ?1", params![bookId])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM book_image WHERE book_id = ?1", params![bookId])
+        .map_err(|e| e.to_string())?;
+
+    // 删除下载的图片文件
+    {
+        let mut stmt = conn
+            .prepare("SELECT local_path FROM book_image WHERE book_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let paths: Vec<String> = stmt
+            .query_map(params![bookId], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        for path in &paths {
+            let p = std::path::Path::new(path);
+            if p.exists() {
+                let _ = std::fs::remove_file(p);
+            }
+        }
+        // 尝试清理空目录（从文件路径向上遍历删除空目录）
+        for path in &paths {
+            let p = std::path::Path::new(path);
+            let mut parent = p.parent();
+            while let Some(dir) = parent {
+                if dir.starts_with(get_downloaded_images_dir(&app).unwrap_or_default()) {
+                    if dir.read_dir().map(|mut d| d.next().is_none()).unwrap_or(false) {
+                        let _ = std::fs::remove_dir(dir);
+                    }
+                }
+                parent = dir.parent();
+            }
+        }
+    }
+    conn.execute("DELETE FROM book_image WHERE book_id = ?1", params![bookId])
         .map_err(|e| e.to_string())?;
 
     info!("[DB] Book deleted: bookId={}", bookId);
@@ -637,4 +724,167 @@ pub fn book_get_local_contents(
         .collect();
 
     Ok(items)
+}
+
+// ================= 图片下载相关命令 =================
+
+/// 获取已下载图片的 URL → 相对路径 映射
+fn get_local_image_map(conn: &Connection, book_id: i64) -> Result<HashMap<String, String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT image_url, local_path FROM book_image WHERE book_id = ?1 AND status = 1")
+        .map_err(|e| e.to_string())?;
+
+    let map: HashMap<String, String> = stmt
+        .query_map(params![book_id], |row| {
+            let url: String = row.get(0)?;
+            let path: String = row.get(1)?;
+            Ok((url, path))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(map)
+}
+
+/// 从图片 URL 提取相对路径（去掉 /resource 前缀）
+pub fn extract_url_path(image_url: &str) -> String {
+    let trimmed = if image_url.starts_with("/resource") {
+        image_url.trim_start_matches("/resource")
+    } else if image_url.contains("resource") {
+        let idx = image_url.find("resource").unwrap_or(0);
+        &image_url[idx + 8..]
+    } else {
+        image_url
+    };
+    trimmed.trim_start_matches('/').to_string()
+}
+
+/// 构建本地图片协议 URL
+/// 格式: localimg://{urlPath}，urlPath 是去掉 /resource 前缀后的路径
+fn build_local_image_url(url_path: &str) -> String {
+    format!("localimg://{}", url_path)
+}
+
+/// 将 HTML 中的远程图片 URL 替换为本地图片协议 URL
+fn replace_image_urls(html: &str, image_map: &HashMap<String, String>) -> String {
+    let mut result = html.to_string();
+    for image_url in image_map.keys() {
+        let url_path = extract_url_path(image_url);
+        let local_url = build_local_image_url(&url_path);
+        result = result.replace(image_url.as_str(), &local_url);
+    }
+    result
+}
+
+/// 将封面图 URL 替换为本地协议 URL
+fn replace_cover_url(cover_url: &str) -> String {
+    if cover_url.is_empty() {
+        return cover_url.to_string();
+    }
+    let url_path = extract_url_path(cover_url);
+    build_local_image_url(&url_path)
+}
+
+/// 获取下载图片的目录路径
+pub fn get_downloaded_images_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(app_dir.join("reader").join("downloaded"))
+}
+
+/// 解析图片 URL 得到本地存储路径
+pub fn resolve_image_local_path(app: &AppHandle, image_url: &str) -> Result<PathBuf, String> {
+    let url_path = extract_url_path(image_url);
+    let dir = get_downloaded_images_dir(app)?;
+    Ok(dir.join(url_path))
+}
+
+/// 插入或更新图片下载记录
+#[tauri::command]
+pub fn book_save_image_record(
+    app: AppHandle,
+    db: State<DbState>,
+    bookId: i64,
+    imageUrl: String,
+) -> Result<bool, String> {
+    let guard = db.0.lock().map_err(|e| e.to_string())?;
+    let conn = guard.as_ref().ok_or("Database not initialized")?;
+
+    let local_path = resolve_image_local_path(&app, &imageUrl).map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().timestamp();
+
+    conn.execute(
+        "INSERT OR IGNORE INTO book_image (book_id, image_url, local_path, status, create_time)
+         VALUES (?1, ?2, ?3, 0, ?4)",
+        params![bookId, imageUrl, local_path.to_string_lossy().to_string(), now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(true)
+}
+
+/// 更新图片下载状态为已下载
+#[tauri::command]
+pub fn book_mark_image_downloaded(
+    app: AppHandle,
+    db: State<DbState>,
+    bookId: i64,
+    imageUrl: String,
+) -> Result<bool, String> {
+    let guard = db.0.lock().map_err(|e| e.to_string())?;
+    let conn = guard.as_ref().ok_or("Database not initialized")?;
+
+    let now = chrono::Utc::now().timestamp();
+    let local_path = resolve_image_local_path(&app, &imageUrl).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE book_image SET status = 1, local_path = ?1, create_time = ?2
+         WHERE book_id = ?3 AND image_url = ?4",
+        params![local_path.to_string_lossy().to_string(), now, bookId, imageUrl],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(true)
+}
+
+/// 获取待下载的图片列表
+#[tauri::command]
+pub fn book_get_pending_images(
+    db: State<DbState>,
+    bookId: i64,
+) -> Result<Vec<String>, String> {
+    let guard = db.0.lock().map_err(|e| e.to_string())?;
+    let conn = guard.as_ref().ok_or("Database not initialized")?;
+
+    let mut stmt = conn
+        .prepare("SELECT image_url FROM book_image WHERE book_id = ?1 AND status = 0 ORDER BY id")
+        .map_err(|e| e.to_string())?;
+
+    let urls = stmt
+        .query_map(params![bookId], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(urls)
+}
+
+/// 批量插入图片下载记录
+pub fn batch_insert_image_records(
+    conn: &Connection,
+    book_id: i64,
+    image_urls: &[String],
+    app: &AppHandle,
+) -> Result<(), String> {
+    let now = chrono::Utc::now().timestamp();
+    for url in image_urls {
+        let local_path = resolve_image_local_path(app, url)?;
+        conn.execute(
+            "INSERT OR IGNORE INTO book_image (book_id, image_url, local_path, status, create_time)
+             VALUES (?1, ?2, ?3, 0, ?4)",
+            params![book_id, url, local_path.to_string_lossy().to_string(), now],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }

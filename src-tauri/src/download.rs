@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::time::{sleep, Duration};
 
-use crate::db::{DbState, DownloadResult};
+use crate::db::{batch_insert_image_records, resolve_image_local_path, DbState, DownloadResult};
 use crate::http::{get_http_client, HttpState};
 
 /// 后端会话失效事件名：下载过程中检测到 cookie 失效时
@@ -36,6 +36,8 @@ pub struct DownloadProgressPayload {
     pub book_id: i64,
     pub downloaded_pages: i64,
     pub total_page: i64,
+    pub total_images: i64,
+    pub downloaded_images: i64,
 }
 
 /// 恢复下载的结果
@@ -109,6 +111,7 @@ pub async fn book_download(
     //    保证已有下载完成的页 status=1 不会被覆盖），实现"已下载页跳过"。
     // 2) 一次性查出尚未下载的页（pending），后台任务只遍历这些页，
     //    避免对已下载页重复发起 HTTP 请求。
+    // 3) 将封面图片 URL 写入 book_image 表。
     let pending_pages: Vec<i64> = {
         let guard = db.0.lock().map_err(|e| e.to_string())?;
         let conn = guard.as_ref().ok_or("Database not initialized")?;
@@ -128,6 +131,17 @@ pub async fn book_download(
                 rusqlite::params![bookId, i, now],
             )
             .map_err(|e| e.to_string())?;
+        }
+
+        // 封面图片 URL 写入 book_image
+        let cover_urls = build_cover_urls(&coverPic, &bigCoverPic);
+        if !cover_urls.is_empty() {
+            batch_insert_image_records(conn, bookId, &cover_urls, &app)?;
+            info!(
+                "[Download] Cover images registered: bookId={}, count={}",
+                bookId,
+                cover_urls.len()
+            );
         }
 
         // 拉 status=0 的页（待下载），按页号升序
@@ -169,6 +183,8 @@ pub async fn book_download(
                 book_id: bookId,
                 downloaded_pages: totalPage,
                 total_page: totalPage,
+                total_images: 0,
+                downloaded_images: 0,
             },
         ) {
             Ok(_) => {
@@ -398,47 +414,69 @@ async fn background_download(
                                     );
                                 }
                                 for item in &items {
-                                    //落库标记 status=1；INSERT OR REPLACE 覆盖之前可能存在的 status=0 占位行
-                                    let save_ok = save_page_to_db(&app, book_id, item);
-                                    if save_ok {
-                                        done_in_task += 1;
-                                        let downloaded_pages = downloaded_base + done_in_task;
-                                        info!(
-                                            "[Download] page_saved: bookId={}, page={}, downloadedPages={}/{}, base={}, doneInTask={}",
-                                            book_id, item.page, downloaded_pages, total_page, downloaded_base, done_in_task
-                                        );
-                                        match app.emit(
-                                            "book_download_progress",
-                                            &DownloadProgressPayload {
-                                                book_id,
-                                                downloaded_pages,
-                                                total_page,
-                                            },
-                                        ) {
-                                            Ok(_) => {
+                                    // 先提取并下载页面中的图片，全部完成后再标记页面
+                                    let image_urls = extract_image_urls(&item.content);
+                                    if !image_urls.is_empty() {
+                                        record_image_urls(&app, book_id, &image_urls);
+                                    }
+
+                                    // 下载本页关联的所有待下载图片
+                                    let images_ok = download_page_images(
+                                        &app, book_id, &server_host, &client,
+                                        &paused, &cancelled,
+                                    ).await;
+
+                                    if images_ok {
+                                        let save_ok = save_page_to_db(&app, book_id, item);
+                                        if save_ok {
+                                            done_in_task += 1;
+                                            let downloaded_pages = downloaded_base + done_in_task;
+                                            let (total_images, downloaded_images) = get_image_stats(&app, book_id);
+                                            info!(
+                                                "[Download] page_saved: bookId={}, page={}, downloadedPages={}/{}, images={}/{}",
+                                                book_id, item.page, downloaded_pages, total_page,
+                                                downloaded_images, total_images
+                                            );
+                                            match app.emit(
+                                                "book_download_progress",
+                                                &DownloadProgressPayload {
+                                                    book_id,
+                                                    downloaded_pages,
+                                                    total_page,
+                                                    total_images,
+                                                    downloaded_images,
+                                                },
+                                            ) {
+                                                Ok(_) => {
+                                                    info!(
+                                                        "[Download] emit_ok: bookId={}, downloadedPages={}, totalPage={}",
+                                                        book_id, downloaded_pages, total_page
+                                                    );
+                                                }
+                                                Err(e) => error!("[Download] emit_ERR: bookId={}, err={}", book_id, e),
+                                            }
+
+                                            let pct = if total_page > 0 {
+                                                (downloaded_pages * 100) / total_page
+                                            } else {
+                                                0
+                                            };
+                                            if pct >= last_progress_pct + 10 {
+                                                last_progress_pct = pct;
                                                 info!(
-                                                    "[Download] emit_ok: bookId={}, downloadedPages={}, totalPage={}",
-                                                    book_id, downloaded_pages, total_page
+                                                    "[Download] Progress: bookId={}, {}/{} ({}%)",
+                                                    book_id, downloaded_pages, total_page, pct
                                                 );
                                             }
-                                            Err(e) => error!("[Download] emit_ERR: bookId={}, err={}", book_id, e),
-                                        }
-
-                                        let pct = if total_page > 0 {
-                                            (downloaded_pages * 100) / total_page
                                         } else {
-                                            0
-                                        };
-                                        if pct >= last_progress_pct + 10 {
-                                            last_progress_pct = pct;
-                                            info!(
-                                                "[Download] Progress: bookId={}, {}/{} ({}%)",
-                                                book_id, downloaded_pages, total_page, pct
+                                            warn!(
+                                                "[Download] save_page_FAILED: bookId={}, page={}",
+                                                book_id, item.page
                                             );
                                         }
                                     } else {
                                         warn!(
-                                            "[Download] save_page_FAILED: bookId={}, page={}",
+                                            "[Download] page_images_failed: bookId={}, page={}",
                                             book_id, item.page
                                         );
                                     }
@@ -481,7 +519,143 @@ async fn background_download(
         "[Download] Download loop done: bookId={}, total={}, pending={}, finalDownloaded={}/{}, doneInTask={}",
         book_id, total_page, pending_len, final_downloaded, total_page, done_in_task
     );
+
+    // 下载剩余可能未下载的图片（如封面等未关联到任何页面的图片）
+    let remaining = download_remaining_images(
+        &app, book_id, &server_host, &client, &paused, &cancelled,
+    )
+    .await;
+    if remaining > 0 {
+        info!(
+            "[Download] Remaining images downloaded: bookId={}, count={}",
+            book_id, remaining
+        );
+    }
+
     Ok(())
+}
+
+/// 下载本页关联的所有待下载图片（已在 book_image 中且 status=0 的）
+/// 返回所有图片是否成功下载
+async fn download_page_images(
+    app: &AppHandle,
+    book_id: i64,
+    server_host: &str,
+    client: &reqwest::Client,
+    paused: &Arc<AtomicBool>,
+    cancelled: &Arc<AtomicBool>,
+) -> bool {
+    let urls = get_pending_urls_from_db(app, book_id);
+    if urls.is_empty() {
+        return true;
+    }
+
+    let mut all_ok = true;
+    for url in &urls {
+        if cancelled.load(Ordering::Relaxed) {
+            return false;
+        }
+        while paused.load(Ordering::Relaxed) {
+            if cancelled.load(Ordering::Relaxed) {
+                return false;
+            }
+            sleep(Duration::from_millis(500)).await;
+        }
+
+        if !download_image_file(app, book_id, url, server_host, client).await {
+            all_ok = false;
+        }
+        sleep(Duration::from_millis(50)).await;
+    }
+    all_ok
+}
+
+/// 下载所有尚未下载的图片（封面等），返回下载数量
+async fn download_remaining_images(
+    app: &AppHandle,
+    book_id: i64,
+    server_host: &str,
+    client: &reqwest::Client,
+    paused: &Arc<AtomicBool>,
+    cancelled: &Arc<AtomicBool>,
+) -> i64 {
+    let mut downloaded = 0i64;
+    loop {
+        let urls = get_pending_urls_from_db(app, book_id);
+        if urls.is_empty() {
+            break;
+        }
+        for url in &urls {
+            if cancelled.load(Ordering::Relaxed) {
+                return downloaded;
+            }
+            while paused.load(Ordering::Relaxed) {
+                if cancelled.load(Ordering::Relaxed) {
+                    return downloaded;
+                }
+                sleep(Duration::from_millis(500)).await;
+            }
+            if download_image_file(app, book_id, url, server_host, client).await {
+                downloaded += 1;
+            }
+            sleep(Duration::from_millis(50)).await;
+        }
+    }
+    downloaded
+}
+
+/// 从 book_image 表读取待下载图片 URL 列表
+fn get_pending_urls_from_db(app: &AppHandle, book_id: i64) -> Vec<String> {
+    let db_state = app.state::<DbState>();
+    let guard = match db_state.0.lock() {
+        Ok(g) => g,
+        Err(_) => return Vec::new(),
+    };
+    let conn = match guard.as_ref() {
+        Some(c) => c,
+        None => return Vec::new(),
+    };
+
+    let mut stmt = match conn.prepare(
+        "SELECT image_url FROM book_image WHERE book_id = ?1 AND status = 0 ORDER BY id",
+    ) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let urls = match stmt.query_map(rusqlite::params![book_id], |row| row.get::<_, String>(0)) {
+        Ok(rows) => rows.filter_map(|r| r.ok()).collect::<Vec<String>>(),
+        Err(_) => Vec::new(),
+    };
+    urls
+}
+
+/// 从 book_image 表获取图片总数和已下载数
+fn get_image_stats(app: &AppHandle, book_id: i64) -> (i64, i64) {
+    let db_state = app.state::<DbState>();
+    let guard = match db_state.0.lock() {
+        Ok(g) => g,
+        Err(_) => return (0, 0),
+    };
+    let conn = match guard.as_ref() {
+        Some(c) => c,
+        None => return (0, 0),
+    };
+
+    let total = conn
+        .query_row(
+            "SELECT COUNT(*) FROM book_image WHERE book_id = ?1",
+            rusqlite::params![book_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let done = conn
+        .query_row(
+            "SELECT COUNT(*) FROM book_image WHERE book_id = ?1 AND status = 1",
+            rusqlite::params![book_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    (total, done)
 }
 
 /// 把目录写入数据库
@@ -627,6 +801,8 @@ pub fn book_save_downloaded_page(
         book_id,
         downloaded_pages,
         total_page,
+        total_images: 0,
+        downloaded_images: 0,
     };
     info!(
         "[Download] emit(save_downloaded_page): bookId={}, downloadedPages={}, totalPage={}, pageIdx={}",
@@ -736,5 +912,206 @@ pub fn book_cancel_download(
         Ok(SimpleResult { success: true })
     } else {
         Ok(SimpleResult { success: false })
+    }
+}
+
+// ================= 图片下载相关函数 =================
+
+/// 构建封面图片 URL 列表（过滤空字符串）
+fn build_cover_urls(cover_pic: &str, big_cover_pic: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    if !cover_pic.is_empty() {
+        urls.push(cover_pic.to_string());
+    }
+    if !big_cover_pic.is_empty() && big_cover_pic != cover_pic {
+        urls.push(big_cover_pic.to_string());
+    }
+    urls
+}
+
+/// 从 HTML 内容中提取所有 <img> 标签的 src 属性
+fn extract_image_urls(html: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    // 查找所有 src="..." 或 src='...' 模式
+    let mut remaining = html;
+    while let Some(start) = remaining.find("src=\"") {
+        let after = &remaining[start + 5..];
+        if let Some(end) = after.find('"') {
+            let url = &after[..end];
+            if !url.is_empty() && url.starts_with('/') {
+                urls.push(url.to_string());
+            }
+            remaining = &after[end + 1..];
+        } else {
+            break;
+        }
+    }
+    remaining = html;
+    while let Some(start) = remaining.find("src='") {
+        let after = &remaining[start + 5..];
+        if let Some(end) = after.find('\'') {
+            let url = &after[..end];
+            if !url.is_empty() && url.starts_with('/') {
+                urls.push(url.to_string());
+            }
+            remaining = &after[end + 1..];
+        } else {
+            break;
+        }
+    }
+    urls
+}
+
+/// 将图片 URL 写入 book_image 表（INSERT OR IGNORE 去重）
+fn record_image_urls(app: &AppHandle, book_id: i64, urls: &[String]) {
+    let db_state = app.state::<DbState>();
+    let guard = match db_state.0.lock() {
+        Ok(g) => g,
+        Err(e) => {
+            error!(
+                "[Download] Image record DB lock failed: bookId={}, err={}",
+                book_id, e
+            );
+            return;
+        }
+    };
+    let conn = match guard.as_ref() {
+        Some(c) => c,
+        None => {
+            error!(
+                "[Download] Image record DB not initialized: bookId={}",
+                book_id
+            );
+            return;
+        }
+    };
+
+    if let Err(e) = batch_insert_image_records(conn, book_id, urls, app) {
+        error!(
+            "[Download] Image record insert failed: bookId={}, err={}",
+            book_id, e
+        );
+    }
+}
+
+/// 下载单张图片到本地文件系统
+async fn download_image_file(
+    app: &AppHandle,
+    book_id: i64,
+    image_url: &str,
+    server_host: &str,
+    client: &reqwest::Client,
+) -> bool {
+    // 构建下载 URL（完整远程地址）
+    let download_url = if image_url.starts_with("http") {
+        image_url.to_string()
+    } else {
+        format!("{}{}", server_host.trim_end_matches('/'), image_url)
+    };
+
+    info!(
+        "[Download] Downloading image: bookId={}, url={}",
+        book_id, download_url
+    );
+
+    match client.get(&download_url).send().await {
+        Ok(resp) => {
+            if !resp.status().is_success() {
+                warn!(
+                    "[Download] Image HTTP {} for bookId={}, url={}",
+                    resp.status(),
+                    book_id,
+                    download_url
+                );
+                return false;
+            }
+
+            let bytes = match resp.bytes().await {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!(
+                        "[Download] Image read failed: bookId={}, url={}, err={}",
+                        book_id, download_url, e
+                    );
+                    return false;
+                }
+            };
+
+            // 解析本地存储路径
+            let local_path = match resolve_image_local_path(app, image_url) {
+                Ok(p) => p,
+                Err(e) => {
+                    error!(
+                        "[Download] Image path resolve failed: bookId={}, url={}, err={}",
+                        book_id, download_url, e
+                    );
+                    return false;
+                }
+            };
+
+            // 确保父目录存在
+            if let Some(parent) = local_path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    error!(
+                        "[Download] Image dir create failed: {:?}, err={}",
+                        parent, e
+                    );
+                    return false;
+                }
+            }
+
+            // 写入文件
+            if let Err(e) = std::fs::write(&local_path, &bytes) {
+                error!(
+                    "[Download] Image write failed: {:?}, err={}",
+                    local_path, e
+                );
+                return false;
+            }
+
+            // 更新数据库状态
+            mark_image_done(app, book_id, image_url, &local_path);
+            true
+        }
+        Err(e) => {
+            warn!(
+                "[Download] Image HTTP error: bookId={}, url={}, err={}",
+                book_id, download_url, e
+            );
+            false
+        }
+    }
+}
+
+/// 标记图片下载完成
+fn mark_image_done(app: &AppHandle, book_id: i64, image_url: &str, local_path: &std::path::Path) {
+    let db_state = app.state::<DbState>();
+    let guard = match db_state.0.lock() {
+        Ok(g) => g,
+        Err(e) => {
+            error!("[Download] mark_image_done DB lock failed: {}", e);
+            return;
+        }
+    };
+    let conn = match guard.as_ref() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let now = chrono::Utc::now().timestamp();
+    if let Err(e) = conn.execute(
+        "UPDATE book_image SET status = 1, local_path = ?1, create_time = ?2
+         WHERE book_id = ?3 AND image_url = ?4",
+        rusqlite::params![
+            local_path.to_string_lossy().to_string(),
+            now,
+            book_id,
+            image_url
+        ],
+    ) {
+        error!(
+            "[Download] mark_image_done DB update failed: bookId={}, url={}, err={}",
+            book_id, image_url, e
+        );
     }
 }

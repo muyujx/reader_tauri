@@ -23,12 +23,16 @@ export interface DownloadProgress {
     exists: boolean;
     downloadedPages: number;
     totalPage: number;
+    totalImages: number;
+    downloadedImages: number;
 }
 
 export interface DownloadProgressEvent {
     bookId: number;
     downloadedPages: number;
     totalPage: number;
+    totalImages: number;
+    downloadedImages: number;
 }
 
 export function downloadBook(bookInfo: BookInfo): Promise<{ success: boolean, bookId: number }> {
@@ -49,7 +53,7 @@ export function downloadBook(bookInfo: BookInfo): Promise<{ success: boolean, bo
  * 后端返回 ResumeResult: { success, bookId, resumed }
  */
 export function resumeBookDownload(bookId: number): Promise<{ success: boolean, bookId: number, resumed: boolean }> {
-    return ipcInvoke(ipcChannel.bookResumeDownload, { bookId });
+    return ipcInvoke(ipcChannel.bookResumeDownload, {bookId});
 }
 
 /**
@@ -57,7 +61,7 @@ export function resumeBookDownload(bookId: number): Promise<{ success: boolean, 
  * 后端返回 SimpleResult: { success }
  */
 export function pauseBookDownload(bookId: number): Promise<{ success: boolean }> {
-    return ipcInvoke(ipcChannel.bookPauseDownload, { bookId });
+    return ipcInvoke(ipcChannel.bookPauseDownload, {bookId});
 }
 
 /**
@@ -65,30 +69,30 @@ export function pauseBookDownload(bookId: number): Promise<{ success: boolean }>
  * 后端返回 SimpleResult: { success }
  */
 export function cancelBookDownload(bookId: number): Promise<{ success: boolean }> {
-    return ipcInvoke(ipcChannel.bookCancelDownload, { bookId });
+    return ipcInvoke(ipcChannel.bookCancelDownload, {bookId});
 }
 
 /**
  * 获取书籍下载进度
  */
 export function getDownloadProgress(bookId: number): Promise<DownloadProgress> {
-    return ipcInvoke(ipcChannel.bookGetDownloadProgress, { bookId });
+    return ipcInvoke(ipcChannel.bookGetDownloadProgress, {bookId});
 }
 
 export function getLocalPage(bookId: number, page: number): Promise<PageItem | null> {
-    return ipcInvoke(ipcChannel.bookGetPage, { bookId, page });
+    return ipcInvoke(ipcChannel.bookGetPage, {bookId, page, useLocalImages: true});
 }
 
 export function getLocalBookInfo(bookId: number): Promise<BookInfo | null> {
-    return ipcInvoke(ipcChannel.bookGetInfo, { bookId });
+    return ipcInvoke(ipcChannel.bookGetInfo, {bookId, useLocalImages: true});
 }
 
 export function deleteLocalBook(bookId: number): Promise<{ success: boolean }> {
-    return ipcInvoke(ipcChannel.bookDelete, { bookId });
+    return ipcInvoke(ipcChannel.bookDelete, {bookId});
 }
 
 export function getLocalImage(bookId: number, imageUrl: string): Promise<{ data: string, mimeType: string } | null> {
-    return ipcInvoke(ipcChannel.bookGetLocalImage, { bookId, imageUrl });
+    return ipcInvoke(ipcChannel.bookGetLocalImage, {bookId, imageUrl});
 }
 
 export interface LocalContentsItem {
@@ -98,7 +102,7 @@ export interface LocalContentsItem {
 }
 
 export function getLocalContents(bookId: number): Promise<LocalContentsItem[]> {
-    return ipcInvoke(ipcChannel.bookGetLocalContents, { bookId });
+    return ipcInvoke(ipcChannel.bookGetLocalContents, {bookId});
 }
 
 export function onDownloadProgress(callback: (progress: DownloadProgressEvent) => void): Promise<() => void> {
@@ -154,26 +158,30 @@ export interface DownloadedBookListResult {
 }
 
 export function getDownloadedBookListByPage(page: number, pageSize: number): Promise<DownloadedBookListResult> {
-    return ipcInvoke(ipcChannel.bookGetListByPage, { page, pageSize });
+    return ipcInvoke(ipcChannel.bookGetListByPage, {page, pageSize});
 }
 
- /**
+/**
  * 更新本地书籍阅读进度
- * 
+ *
  * @param bookId 书籍 ID
  * @param readPage 当前阅读到的页码
  * @param readingCost 累计阅读耗时（秒）
  */
-export function updateLocalReadProgress(bookId: number, readPage: number, readingCost: number): Promise<{ success: boolean }> {
-    return ipcInvoke(ipcChannel.bookUpdateReadProgress, { bookId, readPage, readingCost });
+export function updateLocalReadProgress(bookId: number, readPage: number, readingCost: number): Promise<{
+    success: boolean
+}> {
+    return ipcInvoke(ipcChannel.bookUpdateReadProgress, {bookId, readPage, readingCost});
 }
 
-export function saveLocalPage(bookId: number, pageIdx: number, content: string, title: string, topChapter: number): Promise<{ success: boolean }> {
-    return ipcInvoke(ipcChannel.bookSavePage, { 
-        bookId, 
-        pageIdx, 
-        content, 
-        title, 
-        topChapter 
+export function saveLocalPage(bookId: number, pageIdx: number, content: string, title: string, topChapter: number): Promise<{
+    success: boolean
+}> {
+    return ipcInvoke(ipcChannel.bookSavePage, {
+        bookId,
+        pageIdx,
+        content,
+        title,
+        topChapter
     });
 }

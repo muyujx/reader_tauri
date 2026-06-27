@@ -85,12 +85,7 @@
                              v-else-if="viewMode(book.bookId) === 'loading'"
                              title="点击暂停"
                         >
-                            <el-progress
-                                type="circle"
-                                :width="30"
-                                :stroke-width="3"
-                                :percentage="downloadStatus[book.bookId]?.progress || 0"
-                            />
+                            <ProgressRing :percentage="downloadStatus[book.bookId]?.progress || 0" />
                         </div>
 
                         <!-- paused: 暂停中 或 部分下载未启动（含重启后恢复），圆形进度，点击继续 -->
@@ -99,12 +94,7 @@
                              v-else-if="viewMode(book.bookId) === 'paused'"
                              title="点击继续下载"
                         >
-                            <el-progress
-                                type="circle"
-                                :width="30"
-                                :stroke-width="3"
-                                :percentage="downloadStatus[book.bookId]?.progress || 0"
-                            />
+                            <ProgressRing :percentage="downloadStatus[book.bookId]?.progress || 0" />
                         </div>
 
                         <!-- done: 下载完成，绿色对勾 -->
@@ -159,6 +149,7 @@ import {getAllTag} from "../../apis/bookTag.ts";
 import {delFavoriteApi, getFavoriteBookListAPi} from "../../apis/favoriteBook.ts";
 import {FavoriteBookInfo, FavoriteBookList} from "../../model/favoriteBook.ts";
 import {MostlyCloudy, StarFilled, Download, CircleCheck} from "@element-plus/icons-vue";
+import ProgressRing from "../../components/ProgressRing.vue";
 import {popErr, popSuccess} from "../../utils/message.ts";
 import {loadingStore} from "../../store/loading.ts";
 import hotkeys from "hotkeys-js";
@@ -503,8 +494,9 @@ const unlistenFns: (() => void)[] = [];
 onDownloadProgress((progress) => {
     log.debug('[Download] onDownloadProgress:', progress);
     if (!downloadStatus.value[progress.bookId]) {
+        // 收到进度事件说明该书正在下载，downloading 应为 true
         downloadStatus.value[progress.bookId] = {
-            downloading: false,
+            downloading: true,
             paused: false,
             progress: 0,
         };
@@ -514,14 +506,6 @@ onDownloadProgress((progress) => {
         ? Math.min(100, Math.floor((progress.downloadedPages / progress.totalPage) * 100))
         : 0;
 
-    // 整体替换整个对象以保证 Vue 3 响应式正确触发视图更新
-    const current = downloadStatus.value[progress.bookId];
-    downloadStatus.value[progress.bookId] = {
-        downloading: current.downloading,
-        paused: current.paused,
-        progress: percentage,
-    };
-
     // 下载完成：清理任务状态，标记为已完成（progress=100 -> viewMode='done'）
     if (progress.downloadedPages >= progress.totalPage) {
         downloadStatus.value[progress.bookId] = {
@@ -530,6 +514,13 @@ onDownloadProgress((progress) => {
             progress: 100,
         };
         popSuccess('下载完成');
+    } else {
+        // 整体替换整个对象以保证 Vue 3 响应式正确触发视图更新
+        downloadStatus.value[progress.bookId] = {
+            downloading: true,
+            paused: false,
+            progress: percentage,
+        };
     }
 }).then(unlisten => {
     unlistenFns.push(unlisten);

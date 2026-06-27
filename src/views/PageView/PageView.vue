@@ -25,7 +25,7 @@
 
 
       <div class="book_cover"
-           :style="{backgroundImage: 'url(' + addHost(bookInfo.bigCoverPic) + ')'}"
+           :style="{backgroundImage: 'url(' + coverImageSrc + ')'}"
            v-if="curPageItem.page === PageCache.COVER_PAGE">
       </div>
 
@@ -112,7 +112,7 @@
 <style src="./PageView.less" lang="less"/>
 
 <script setup lang="ts">
-import {onBeforeUnmount, onMounted, ref, useTemplateRef} from 'vue';
+import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import Contents from './Contents.vue';
 import {BookInfo, PageItem} from "../../model/pageModel";
@@ -171,6 +171,14 @@ const bookInfo = ref<BookInfo>({
   coverPic: '',
   bookId: 0,
   favorite: false,
+});
+
+// 封面图地址：离线模式下 bookInfo.bigCoverPic 已经是 localimg:// URL，不需要 addHost
+const coverImageSrc = computed(() => {
+  const src = bookInfo.value.bigCoverPic;
+  if (!src) return '';
+  if (src.startsWith('localimg://') || src.includes('://')) return src;
+  return addHost(src);
 });
 
 // 图片预览列表

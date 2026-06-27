@@ -48,7 +48,11 @@ export function preloadBySrc(src: string) {
     if (src == null || src.length == 0) {
         return;
     }
-    
+
+    if (src.startsWith('localimg://')) {
+        return;
+    }
+
     const img = new Image();
     
     // 添加错误处理
