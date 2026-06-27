@@ -237,25 +237,10 @@
   box-sizing: content-box;
 }
 
+// 移动端适配 - 优化触摸体验
 @media screen and (max-width: 800px) {
   .page_view {
     user-select: none;
-  }
-
-  .page_container {
-
-    .book_cover {
-      width: @pageWidth * 0.7;
-      height: @pageHeight * 0.7;
-    }
-
-  }
-
-}
-
-// 移动端适配 - 优化触摸体验
-@media screen and (max-width: 768px) {
-  .page_view {
     font-size: 16px;
     -webkit-overflow-scrolling: touch;
   }
@@ -382,4 +367,3 @@ img {
   max-width: 100%;
   height: auto;
 }
-

@@ -1,4 +1,4 @@
-html, body, #app, #main {
+html, body, #app {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -8,6 +8,8 @@ html, body, #app, #main {
 }
 
 #app {
+  display: flex;
+  flex-direction: column;
   position: relative;
 
   font-size: 16px;
@@ -20,17 +22,38 @@ html, body, #app, #main {
 }
 
 #main {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
   --el-color-primary: var(--primary);
   --el-input-text-color: var(--accent);
   color: var(--foreground);
   background-color: var(--background);
 }
 
-// 手机端顶部状态栏适配 - 隐藏标题栏后增加顶部空间
-@media screen and (max-width: 800px) {
-  #main {
-    padding-top: 30px;
-  }
+// 桌面端：标题栏高度 30px
+#main.platform-pc {
+  padding-top: 30px;
+}
+
+// 移动端：状态栏高度
+#main.platform-mobile {
+  padding-top: 20px;
+}
+
+// 全局滚动条样式
+*::-webkit-scrollbar {
+  width: 10px;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  width: 100%;
+  border-radius: 10px;
+  background-color: var(--active);
+  border: 1px solid var(--active);
+  background-clip: padding-box;
 }
 
 input::-webkit-outer-spin-button,
@@ -41,5 +64,3 @@ input::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
-
-

@@ -227,7 +227,7 @@ function scrollToMid() {
     backface-visibility: hidden;
     border-radius: 0 20px 20px 0;
 
-    z-index: 100;
+    z-index: 9999;
 
     position: absolute;
     transform: translateX(calc(0px - var(--contents-width)));
@@ -297,22 +297,6 @@ function scrollToMid() {
         }
     }
 
-}
-
-.contents_body::-webkit-scrollbar {
-    width: 10px;
-    border-radius: 10px;
-}
-
-.contents_body::-webkit-scrollbar-thumb {
-    border-radius: 6px;
-    background-color: var(--second);
-    border: 1px solid var(--border);
-    box-sizing: border-box;
-}
-
-.contents_body::-webkit-scrollbar-thumb:hover {
-    background-color: var(--active);
 }
 
 .contents_body {

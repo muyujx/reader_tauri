@@ -103,7 +103,6 @@ import {Download, Delete} from "@element-plus/icons-vue";
 import {popErr, popSuccess} from "../../utils/message.ts";
 import {loadingStore} from "../../store/loading.ts";
 import hotkeys from "hotkeys-js";
-import windowSizeListener from "../../service/windowSize.ts";
 import {formatDistanceToNow} from 'date-fns';
 import {zhCN} from 'date-fns/locale';
 import {
@@ -121,22 +120,10 @@ const empty = ref(false);
 const loading = loadingStore();
 
 // 监听窗口大小变化，修改 pageSize
-const onWindowSizeChange = (width: number, height: number) => {
-    let curPageSize = 12;
-    if (height < 500) {
-        curPageSize = 4;
-    } else if (height <= 900) {
-        curPageSize = 9;
-    }
-    if (pageSize.value != curPageSize) {
-        pageSize.value = curPageSize;
-        getBookList();
-    }
-};
-windowSizeListener.on(onWindowSizeChange);
+const onWindowSizeChange = () => {};
+
 onUnmounted(() => {
     log.debug("----- DownloadBook Unmounted ---");
-    windowSizeListener.delete(onWindowSizeChange);
 })
 
 function getBookList(showLoading = true) {

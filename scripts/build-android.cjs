@@ -48,14 +48,53 @@ function readManifest() {
     return null;
 }
 
-// 生成自适应图标前景图：在透明画布上居中放置缩放后的前景
+// 裁剪前景图的透明边距，返回 { buffer, width, height }
+async function trimTransparent(fgPath) {
+    const { data, info } = await sharp(fgPath).raw().ensureAlpha().toBuffer({ resolveWithObject: true });
+    let minX = info.width, minY = info.height, maxX = 0, maxY = 0;
+    let hasContent = false;
+    for (let y = 0; y < info.height; y++) {
+        for (let x = 0; x < info.width; x++) {
+            if (data[(y * info.width + x) * 4 + 3] > 10) {
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+                hasContent = true;
+            }
+        }
+    }
+    if (!hasContent) {
+        return sharp(fgPath).toBuffer().then(b => ({ buffer: b, width: info.width, height: info.height }));
+    }
+    const cropW = maxX - minX + 1, cropH = maxY - minY + 1;
+    const buffer = await sharp(fgPath)
+        .extract({ left: minX, top: minY, width: cropW, height: cropH })
+        .toBuffer();
+    return { buffer, width: cropW, height: cropH };
+}
+
+// 生成自适应图标前景图：先裁剪透明边距，再按 fgScale 缩放后居中放透明画布
 async function generateForeground(foregroundPath, canvasSize, fgScale, outputPath) {
     const fgSize = Math.round(canvasSize * fgScale / 100);
-    const offset = Math.round((canvasSize - fgSize) / 2);
+    const { buffer: trimmedBuf, width: trimW, height: trimH } = await trimTransparent(foregroundPath);
 
-    const fgBuffer = await sharp(foregroundPath)
-        .resize(fgSize, fgSize, { fit: 'contain' })
+    // 保持原始宽高比，按 fgSize 缩放
+    let finalW, finalH;
+    if (trimW >= trimH) {
+        finalW = fgSize;
+        finalH = Math.round(fgSize * trimH / trimW);
+    } else {
+        finalH = fgSize;
+        finalW = Math.round(fgSize * trimW / trimH);
+    }
+
+    const fgBuffer = await sharp(trimmedBuf)
+        .resize(finalW, finalH, { fit: 'fill' })
         .toBuffer();
+
+    const offsetX = Math.round((canvasSize - finalW) / 2);
+    const offsetY = Math.round((canvasSize - finalH) / 2);
 
     await sharp({
         create: {
@@ -65,7 +104,7 @@ async function generateForeground(foregroundPath, canvasSize, fgScale, outputPat
             background: { r: 0, g: 0, b: 0, alpha: 0 }
         }
     })
-    .composite([{ input: fgBuffer, top: offset, left: offset }])
+    .composite([{ input: fgBuffer, top: offsetY, left: offsetX }])
     .png()
     .toFile(outputPath);
 }

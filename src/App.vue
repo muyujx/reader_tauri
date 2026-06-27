@@ -1,12 +1,12 @@
 <template>
 
-    <title-bar/>
+  <title-bar/>
 
-    <div id="main">
-        <router-view/>
-    </div>
+  <div id="main" :class="isPc() ? 'platform-pc' : 'platform-mobile'">
+    <router-view/>
+  </div>
 
-    <Loading/>
+  <Loading/>
 
 </template>
 
@@ -21,6 +21,7 @@
 import {themeStore} from "./store/theme.ts";
 import TitleBar from "./components/window/TitleBar.vue";
 import hotkeys from 'hotkeys-js';
+import {isPc} from "./utils/platform.ts";
 import {useRouter} from "vue-router";
 import Loading from "./components/Loading.vue";
 
@@ -31,7 +32,7 @@ const router = useRouter();
 
 hotkeys('ctrl+s', (e) => e.preventDefault());
 hotkeys('esc', (e) => {
-    router.back();
+  router.back();
 });
 hotkeys('f11, enter', fullScreen);
 
@@ -39,13 +40,13 @@ let full = false;
 
 function fullScreen() {
 
-    full = !full;
+  full = !full;
 
-    if (full) {
-        document.body.requestFullscreen();
-    } else {
-        document.exitFullscreen();
-    }
+  if (full) {
+    document.body.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
 }
 
 </script>

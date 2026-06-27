@@ -20,19 +20,6 @@
   width: 700px;
   padding: 20px;
 
-  &::-webkit-scrollbar {
-    width: 10px;
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    width: 100%;
-    border-radius: 10px;
-    background-color: var(--active);
-    border: 1px solid var(--active);
-    background-clip: padding-box;
-  }
-
   .config-item {
     width: 100%;
     display: flex;
@@ -264,7 +251,7 @@
 }
 
 // 移动端适配 - 统一使用 90vw 宽度
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 800px) {
   .config-content {
     width: 90vw;
     max-width: 500px;

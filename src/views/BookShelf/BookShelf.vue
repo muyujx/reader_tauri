@@ -204,22 +204,14 @@ function getPagerCount(): number {
 
 // 监听窗口大小变化，重新计算每页数量
 function handleResize() {
-    const newPageSize = getPageSize();
-    if (newPageSize !== pageSize.value) {
-        pageSize.value = newPageSize;
-        pagerCount.value = getPagerCount();
-        page.value = 1; // 重置到第一页
-        getBookList();
-    }
+    // 不再根据窗口大小调整
 }
 
 onMounted(() => {
-    const cleanup = initResponsiveConfig();
-    window.addEventListener('resize', handleResize);
+    initResponsiveConfig();
 });
 
 onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
 });
 
 initPage();
@@ -446,6 +438,5 @@ defineExpose({
 })
 
 </script>
-
 
 

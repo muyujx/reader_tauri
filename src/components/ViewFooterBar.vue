@@ -71,7 +71,7 @@ function openConfig () {
     position: fixed;
     bottom: 0;
     left: 0;
-    z-index: 10;
+    z-index: 9999;
 
     div {
         //background-color: #00BCD4;
