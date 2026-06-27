@@ -14,8 +14,8 @@
 
     <div class="page_container"
          @touchstart.stop="touchControl.touchstart"
-         @touchmove.stop="touchControl.touchmove"
-         @touchend.stop="touchControl.touchend"
+         @touchmove="touchControl.touchmove"
+         @touchend="touchControl.touchend"
          @click="toggleFooter"
          ref="pageContainer"
          :class="{
@@ -479,4 +479,3 @@ function openContents() {
 }
 
 </script>
-

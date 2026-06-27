@@ -2,7 +2,7 @@ type Runnable = () => void;
 
 export class TouchControl {
 
-    private static readonly DELTA_X = 60;
+    private static readonly DELTA_X = 70;
 
     private firstX: number = 0
     private firstY: number = 0

@@ -2,8 +2,8 @@
 
     <div class="shelf"
          @touchstart.stop="touchControl.touchstart"
-         @touchmove.stop="touchControl.touchmove"
-         @touchend.stop="touchControl.touchend"
+         @touchmove="touchControl.touchmove"
+         @touchend="touchControl.touchend"
          @contextmenu.prevent=""
     >
 
@@ -438,5 +438,4 @@ defineExpose({
 })
 
 </script>
-
 
