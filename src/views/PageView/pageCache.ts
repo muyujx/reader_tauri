@@ -220,6 +220,10 @@ export class PageCache {
             pages = await getBookPageList(this.bookId, startPage, pageSize);
         }
         log.info(`[PageCache] loadPages result: ${pages.length} pages`);
+        for (let i = 0; i < pages.length; i++) {
+            const p = pages[i];
+            console.log('[DEBUG] loadPages page=' + p.page + ' title=' + p.title + ' contentLen=' + (p.content ? p.content.length : 0));
+        }
         
         if (loadType == PageCacheLoad.RESET) {
             this.cacheList = pages;

@@ -17,7 +17,6 @@ html, body, #app {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  backface-visibility: hidden;
   font-family: var(--font-family);
 }
 
@@ -26,6 +25,9 @@ html, body, #app {
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   --el-color-primary: var(--primary);
   --el-input-text-color: var(--accent);
   color: var(--foreground);

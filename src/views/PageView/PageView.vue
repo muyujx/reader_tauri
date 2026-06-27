@@ -451,8 +451,10 @@ function getPageHtml(curPage: number) {
   pageCache?.getPage(curPage).then((pageItem: PageItem | null) => {
     // 多次重复获取不操作直接返回
     if (pageItem == null) {
+      console.warn('[DEBUG] getPageHtml: pageItem is null');
       return;
     }
+    console.log('[DEBUG] getPageHtml: title=' + pageItem.title + ', page=' + pageItem.page + ', contentLen=' + (pageItem.content ? pageItem.content.length : 0));
     curPageItem.value = pageItem;
 
     // 同步修改当前页所在目录

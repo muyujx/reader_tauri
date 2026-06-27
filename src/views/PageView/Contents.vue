@@ -212,10 +212,10 @@ function scrollToMid() {
 .contents {
     --contents-width: 500px;
 
-    height: 100%;
     flex-shrink: 0;
     width: var(--contents-width);
-
+    top: 0;
+    bottom: 0;
 
     user-select: none;
     display: flex;
@@ -224,7 +224,6 @@ function scrollToMid() {
     background-color: var(--background);
     flex-direction: column;
     transition: 500ms;
-    backface-visibility: hidden;
     border-radius: 0 20px 20px 0;
 
     z-index: 9999;
@@ -301,11 +300,11 @@ function scrollToMid() {
 
 .contents_body {
     width: 100%;
-    height: 100%;
-    flex: 0 0 1;
+    flex: 1;
     box-sizing: border-box;
     overflow: auto;
     padding: 10px 10px;
+    min-height: 0;
 }
 
 .contents_item {
@@ -381,6 +380,7 @@ function scrollToMid() {
         position: fixed;
         left: 0;
         top: 0;
+        bottom: 0;
     }
 
     .close_contents {
